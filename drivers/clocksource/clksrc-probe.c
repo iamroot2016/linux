@@ -24,6 +24,9 @@ extern struct of_device_id __clksrc_of_table[];
 static const struct of_device_id __clksrc_of_table_sentinel
 	__used __section(__clksrc_of_table_end);
 
+/** 20160626
+ * devicetree에서 clocksource 와 match되는 node의 초기화 함수를 호출한다.
+ **/
 void __init clocksource_probe(void)
 {
 	struct device_node *np;

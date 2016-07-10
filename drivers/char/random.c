@@ -1250,6 +1250,9 @@ static ssize_t extract_entropy_user(struct entropy_store *r, void __user *buf,
  * number generator.  For random bytes direct from the hardware RNG
  * (when available), use get_random_bytes_arch().
  */
+/** 20160612
+ * kernel에서 사용하는 random 값 생성 함수.
+ **/
 void get_random_bytes(void *buf, int nbytes)
 {
 #if DEBUG_RANDOM_BOOT > 0

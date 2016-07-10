@@ -1703,8 +1703,16 @@ static struct notifier_block hrtimers_nb = {
 	.notifier_call = hrtimer_cpu_notify,
 };
 
+/** 20160626
+ * hrtimer 관련 초기화.
+ *
+ * 기존 timer에 병합하지 않고 hrtimer를 별도로 둔 이유???
+ **/
 void __init hrtimers_init(void)
 {
+	/** 20160626
+	 * notifier와 cb 등록.
+	 **/
 	hrtimer_cpu_notify(&hrtimers_nb, (unsigned long)CPU_UP_PREPARE,
 			  (void *)(long)smp_processor_id());
 	register_cpu_notifier(&hrtimers_nb);

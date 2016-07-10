@@ -29,6 +29,9 @@
 #define UL(x) _AC(x, UL)
 
 /* PAGE_OFFSET - the virtual address of the start of the kernel image */
+/** 20160529
+ * 커널 이미지의 시작 가상주소
+ **/
 #define PAGE_OFFSET		UL(CONFIG_PAGE_OFFSET)
 
 #ifdef CONFIG_MMU
@@ -165,6 +168,9 @@
 
 #define virt_to_pfn(kaddr) (__pa(kaddr) >> PAGE_SHIFT)
 
+/** 20160529
+ * __virt_to_phys는 별도로 정의되지 않았고, CONFIG_ARM_PATCH_PHYS_VIRT는 설정.
+ **/
 #elif defined(CONFIG_ARM_PATCH_PHYS_VIRT)
 
 /*
@@ -186,6 +192,30 @@ extern const void *__pv_table_begin, *__pv_table_end;
 	((((unsigned long)(kaddr) - PAGE_OFFSET) >> PAGE_SHIFT) + \
 	 PHYS_PFN_OFFSET)
 
+/** 20160529
+ * 현재 섹션 정보를 섹션스택에 저장하고 .pv_table섹션에 .long타입의 
+ * 데이터(어드레스정보)를 저장후 섹션스택을 다시 Pop한다
+ * (%0 : output, %1,%2 : input)
+ *
+ *
+ * 인라인 변환 예 : add t,x,__PV_BITS_31_24
+ * __virt_to_phys 실행시 
+ * inst 는 text 섹션 어딘가에 저장이 되지만
+ * pv_table은 inst의 주소만을 가지고 있다.
+ * 
+ * vmlinux dump (dump 내용 출력)
+ *   ...
+ *
+ * __PV_BITS_31_24 는 __fixup_pv_table 에서 계산된 offset으로 변경됨.
+ * 1. inline assembly 함수로 선언했기 때문에
+ * virt_to_phys(), phys_to_virt()를 호출한 부분마다 다음 코드가 삽입된다.
+ * 2. instruction은 함수를 호출한 부분마다 들어가고, 각 instruction의 주소는
+ *  .pv_table section에 일괄 저장된다.
+ * 3. 이렇게 하는 이유는 offset 값을 memory에 넣고 add, sub를 하기 위해서는 load 과정이 필요한데,
+ * 부팅시에 이 과정을 한 번에 수정해 수행속도의 향상을 얻기 위함이다.
+ * 4. P <-> V간 address 변환을 한 사이클로 수행해 속도 향상 뿐만 아니라 atomic 연산의 효과도 얻을 수 있을듯 ???
+ * 5. add, sub의 instruction encoding을 보면 8비트만 immediate 로 사용해야 하나의 instruction으로 처리된다.
+ **/
 #define __pv_stub(from,to,instr,type)			\
 	__asm__("@ __pv_stub\n"				\
 	"1:	" instr "	%0, %1, %2\n"		\
@@ -284,6 +314,10 @@ static inline void *phys_to_virt(phys_addr_t x)
 /*
  * Drivers should NOT use these either.
  */
+/** 20160529    
+ * __pa : virtual 주소를 physical 주소로 변환
+ * __va : physical 주소를 virtual 주소로 변환
+ **/
 #define __pa(x)			__virt_to_phys((unsigned long)(x))
 #define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
 #define pfn_to_kaddr(pfn)	__va((phys_addr_t)(pfn) << PAGE_SHIFT)

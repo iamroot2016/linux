@@ -77,6 +77,9 @@ struct tvec_root {
 	struct hlist_head vec[TVR_SIZE];
 };
 
+/** 20160626
+ * timer 관련 자료구조
+ **/
 struct tvec_base {
 	spinlock_t lock;
 	struct timer_list *running_timer;
@@ -94,7 +97,9 @@ struct tvec_base {
 	struct tvec tv5;
 } ____cacheline_aligned;
 
-
+/** 20160626
+ * tvec_bases. per cpu로 존재한다.
+ **/
 static DEFINE_PER_CPU(struct tvec_base, tvec_bases);
 
 #if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
@@ -1642,6 +1647,11 @@ static int timer_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
+/** 20160626
+ * cpu notifier로 timer_cpu_notify를 등록한다. 
+ *
+ * HOTPLUG로 cpu가 die일 경우 die되는 cpu에 등록되어 있던 timer를 다른 cpu로 마이그레이션.
+ **/
 static inline void timer_register_cpu_notifier(void)
 {
 	cpu_notifier(timer_cpu_notify, 0);
@@ -1650,6 +1660,9 @@ static inline void timer_register_cpu_notifier(void)
 static inline void timer_register_cpu_notifier(void) { }
 #endif /* CONFIG_HOTPLUG_CPU */
 
+/** 20160626
+ * percpu timer 초기화
+ **/
 static void __init init_timer_cpu(int cpu)
 {
 	struct tvec_base *base = per_cpu_ptr(&tvec_bases, cpu);
@@ -1661,6 +1674,9 @@ static void __init init_timer_cpu(int cpu)
 	base->next_timer = base->timer_jiffies;
 }
 
+/** 20160626
+ * cpu별 timer 관련 구조체 초기화
+ **/
 static void __init init_timer_cpus(void)
 {
 	int cpu;
@@ -1669,11 +1685,20 @@ static void __init init_timer_cpus(void)
 		init_timer_cpu(cpu);
 }
 
+/** 20160626
+ * timer 관련 초기화를 한다.
+ **/
 void __init init_timers(void)
 {
+	/** 20160626
+	 * percpu tvec_base 초기화
+	 **/
 	init_timer_cpus();
 	init_timer_stats();
 	timer_register_cpu_notifier();
+	/** 20160626
+	 * TIMER_SOFTIRQ raise시 run_timer_softirq를 호출하도록 등록한다.
+	 **/
 	open_softirq(TIMER_SOFTIRQ, run_timer_softirq);
 }
 

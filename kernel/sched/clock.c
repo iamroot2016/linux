@@ -147,6 +147,11 @@ static inline struct sched_clock_data *cpu_sdc(int cpu)
 	return &per_cpu(sched_clock_data, cpu);
 }
 
+/** 20160626
+ * scheduling에서 사용하는 clock을 초기화 한다.
+ *
+ * sched_clock_data를 초기화 한다.
+ **/
 void sched_clock_init(void)
 {
 	u64 ktime_now = ktime_to_ns(ktime_get());

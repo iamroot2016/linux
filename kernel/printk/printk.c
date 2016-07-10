@@ -280,6 +280,9 @@ static u32 clear_idx;
 /* record buffer */
 #define LOG_ALIGN __alignof__(struct printk_log)
 #define __LOG_BUF_LEN (1 << CONFIG_LOG_BUF_SHIFT)
+/** 20160612
+ * 기본 로그 버퍼.
+ **/
 static char __log_buf[__LOG_BUF_LEN] __aligned(LOG_ALIGN);
 static char *log_buf = __log_buf;
 static u32 log_buf_len = __LOG_BUF_LEN;
@@ -928,6 +931,10 @@ static void __init log_buf_add_cpu(void)
 static inline void log_buf_add_cpu(void) {}
 #endif /* CONFIG_SMP */
 
+/** 20160612
+ * 컴파일시 작은 버퍼 사이즈를 잡아두었다가 cpu 개수에 따라
+ * 크게 할당 받아 교체한다.
+ **/
 void __init setup_log_buf(int early)
 {
 	unsigned long flags;
@@ -937,6 +944,9 @@ void __init setup_log_buf(int early)
 	if (log_buf != __log_buf)
 		return;
 
+	/** 20160612
+	 * 새로 할당 받아야 할지 검사하는 부분
+	 **/
 	if (!early && !new_log_buf_len)
 		log_buf_add_cpu();
 

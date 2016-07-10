@@ -416,6 +416,11 @@ extern bool force_irqthreads;
    al. should be converted to tasklets, not to softirqs.
  */
 
+/** 20160626
+ * softirq.
+ *
+ * 우선순위를 이렇게 정의한 이유???
+ **/
 enum
 {
 	HI_SOFTIRQ=0,

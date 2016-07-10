@@ -87,6 +87,9 @@ static struct cpuhp_step cpuhp_ap_states[];
  *
  * Called from cpu hotplug and from the state register machinery
  */
+/** 20160612
+ * hotplug notifier는 기존에 존재하였는데 왜 등장하였을까???
+ **/
 static int cpuhp_invoke_callback(unsigned int cpu, enum cpuhp_state step,
 				 int (*cb)(unsigned int))
 {
@@ -1696,6 +1699,9 @@ void init_cpu_online(const struct cpumask *src)
 /*
  * Activate the first processor.
  */
+/** 20160612
+ * possible, online, active, present에 대한 설명을 추가
+ **/
 void __init boot_cpu_init(void)
 {
 	int cpu = smp_processor_id();

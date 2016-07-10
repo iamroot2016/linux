@@ -101,6 +101,9 @@ extern void radix_tree_init(void);
  * operations which are not allowed with IRQ disabled are allowed while the
  * flag is set.
  */
+/** 20160612
+ * 특정 함수에 진입시 booting 중이어서 irq가 꺼져 있음을 알려주는 역할.
+ **/
 bool early_boot_irqs_disabled __read_mostly;
 
 enum system_states system_state __read_mostly;
@@ -358,8 +361,18 @@ static inline void smp_prepare_cpus(unsigned int maxcpus) { }
  * parsing is performed in place, and we should allow a component to
  * store reference of name/value for future reference.
  */
+/** 20160612
+ * command_line을 각각의 변수에 복사
+ *
+ * setup_arch에서 파싱을 마치고 들어온다.
+ **/
 static void __init setup_command_line(char *command_line)
 {
+	/** 20160612
+	 * saved_command_line 안 바뀌는 것
+	 * initcall_command_line initcall에서 파싱 되어서 사용
+	 * static_command_line : 파라미터 파싱용으로 사용되어 변경 가능
+	 **/
 	saved_command_line =
 		memblock_virt_alloc(strlen(boot_command_line) + 1, 0);
 	initcall_command_line =
@@ -434,6 +447,13 @@ void __init parse_early_options(char *cmdline)
 }
 
 /* Arch code calls this early on, or if not, just before other parsing. */
+/** 20160612
+ * setup_arch에서 호출
+ * boot_command_line 을 parsing 하여, early 관련 함수 실행.
+ *
+ * arm에서는 미리 한 번 호출하므로 done을 두어
+ * 두 번 실행되지 않도록 한다.
+ **/
 void __init parse_early_param(void)
 {
 	static int done __initdata;
@@ -461,12 +481,20 @@ void __init __weak thread_info_cache_init(void)
 /*
  * Set up kernel memory allocators
  */
+/** 20160626
+ * kernel memory allocator를 초기화 한다.
+ *
+ * arm64는 hw page size와 va bits에 따라 PGTABLE_LEVELS이 결정된다.
+ **/
 static void __init mm_init(void)
 {
 	/*
 	 * page_ext requires contiguous pages,
 	 * bigger than MAX_ORDER unless SPARSEMEM.
 	 */
+	/** 20160626
+	 * page extention을 위한 flatmem 초기화
+	 **/
 	page_ext_init_flatmem();
 	mem_init();
 	kmem_cache_init();
@@ -481,17 +509,40 @@ asmlinkage __visible void __init start_kernel(void)
 	char *command_line;
 	char *after_dashes;
 
+	/** 20160612
+	 * init_task의 stack에 MAGIC을 넣는다.
+	 * stack의 overflow를 검사하기 위함.
+	 **/
 	set_task_stack_end_magic(&init_task);
+	/** 20160612
+	 * processor id를 설정한다.
+	 * cpu_logical_map을 설정한다.
+	 * booting된 cpu 번호를 cpu_logical_map의 첫 항목으로 넣는다. 
+	 **/
 	smp_setup_processor_id();
 	debug_objects_early_init();
 
 	/*
 	 * Set up the the initial canary ASAP:
 	 */
+	/** 20160612
+	 * stack canary 값을 초기화 한다.
+	 **/
 	boot_init_stack_canary();
 
+	/** 20160612
+	 *	init 과정에서 먼저 초기화가 이루어져야 하는 자료구조를 초기화 한다.
+	 *   (init task에 대한 cgroup 자료구조)
+	 *
+	 * Documentation/cgroup-v1/...
+	 * Documentation/cgroup-v2.txt
+	 **/
 	cgroup_init_early();
 
+	/** 20160612
+	 * kernel에서 interrupt를 masking.
+	 * 전역 함수에 disable 처리를 기록한다. __read_mostly로 선언됨
+	 **/
 	local_irq_disable();
 	early_boot_irqs_disabled = true;
 
@@ -499,14 +550,24 @@ asmlinkage __visible void __init start_kernel(void)
  * Interrupts are still disabled. Do necessary setups, then
  * enable them
  */
+	/** 20160612
+	 * boot시 사용된 cpu 비트맵 변수들을 초기화
+	 **/
 	boot_cpu_init();
 	page_address_init();
+	/** 20160612
+	 * banner 출력.
+	 * 컴파일시 생성되는 버전 정보 등이 출력된다.
+	 **/
 	pr_notice("%s", linux_banner);
 	setup_arch(&command_line);
 	mm_init_cpumask(&init_mm);
 	setup_command_line(command_line);
 	setup_nr_cpu_ids();
 	setup_per_cpu_areas();
+	/** 20160612
+	 * hotplug
+	 **/
 	boot_cpu_state_init();
 	smp_prepare_boot_cpu();	/* arch-specific boot-cpu hooks */
 
@@ -515,6 +576,9 @@ asmlinkage __visible void __init start_kernel(void)
 
 	pr_notice("Kernel command line: %s\n", boot_command_line);
 	parse_early_param();
+	/** 20160612
+	 * 파라미터 파싱
+	 **/
 	after_dashes = parse_args("Booting kernel",
 				  static_command_line, __start___param,
 				  __stop___param - __start___param,
@@ -529,10 +593,22 @@ asmlinkage __visible void __init start_kernel(void)
 	 * These use large bootmem allocations and must precede
 	 * kmem_cache_init()
 	 */
+	/** 20160612
+	 * 많은 수의 cpu를 사용하는 시스템을 위해 
+	 * log buffer를 할당한다.
+	 *
+	 * dmesg를 입력하면 나오는 버퍼인지???
+	 **/
 	setup_log_buf(0);
 	pidhash_init();
 	vfs_caches_init_early();
+	/** 20160612
+	 * kernel용 exception table
+	 **/
 	sort_main_extable();
+	/** 20160612
+	 * ARM에서는 바로 리턴.
+	 **/
 	trap_init();
 	mm_init();
 
@@ -546,17 +622,34 @@ asmlinkage __visible void __init start_kernel(void)
 	 * Disable preemption - early bootup scheduling is extremely
 	 * fragile until we cpu_idle() for the first time.
 	 */
+	/** 20160626
+	 * early bootup scheduling이 동작하면 깨지기 쉬워 동작하지 않도록 선점 불가 설정.
+	 **/
 	preempt_disable();
 	if (WARN(!irqs_disabled(),
 		 "Interrupts were enabled *very* early, fixing it\n"))
 		local_irq_disable();
+	/** 20160626
+	 * idr 자료구조 초기화
+	 **/
 	idr_init_cache();
 	rcu_init();
 
 	/* trace_printk() and trace points may be used after this */
+	/** 20160626
+	 * trace를 사용하기 위해 초기화.
+	 **/
 	trace_init();
 
+	/** 20160626
+	 * context switching 을 tracking하는 subsystem.
+	 **/
 	context_tracking_init();
+	/** 20160626
+	 * radix tree 초기화
+	 *
+	 * rb tree init은?
+	 **/
 	radix_tree_init();
 	/* init some links before init_ISA_irqs() */
 	early_irq_init();

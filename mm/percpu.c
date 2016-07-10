@@ -2187,6 +2187,13 @@ static void __init pcpu_dfl_fc_free(void *ptr, size_t size)
 	memblock_free_early(__pa(ptr), size);
 }
 
+/** 20160612
+ * SMP에서 변수에 동시에 접근해 업데이트 할 때 lock 없이
+ * 각 cpu용으로 할당된 메모리에 접근해서 사용할 수 있다.
+ *
+ * first chunk를 생성하고,
+ * 각 cpu들이 percpu내의 자원을 사용할 수 있도록 시작 위치 및 offset을 구해준다.
+ **/
 void __init setup_per_cpu_areas(void)
 {
 	unsigned long delta;
@@ -2254,6 +2261,10 @@ void __init setup_per_cpu_areas(void)
  * This function is called after slab is brought up and replaces those
  * with properly allocated maps.
  */
+/** 20160626
+ * setup_per_cpu_areas에서 임시로 할당해둔 allocation map을
+ * slub이 초기화 된 이후에 이관한다.
+ **/
 void __init percpu_init_late(void)
 {
 	struct pcpu_chunk *target_chunks[] =

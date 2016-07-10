@@ -822,6 +822,9 @@ void *idr_replace(struct idr *idp, void *ptr, int id)
 }
 EXPORT_SYMBOL(idr_replace);
 
+/** 20160626
+ * idr를 할당받을 때 사용하는 idr_layer용 cache 생성.
+ **/
 void __init idr_init_cache(void)
 {
 	idr_layer_cache = kmem_cache_create("idr_layer_cache",

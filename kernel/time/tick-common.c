@@ -528,8 +528,16 @@ void tick_unfreeze(void)
 /**
  * tick_init - initialize the tick control
  */
+/** 20160626
+ * tick 설정을 초기화 한다.
+ **/
 void __init tick_init(void)
 {
+	/** 20160626
+	 * multicore가 있을 경우 core 마다 timer가 존재.
+	 * deep sleep에 들어간 경우 잠들지 않은 core 하나가
+	 * 다른 core에게 broadcast로 알려준다.
+	 **/
 	tick_broadcast_init();
 	tick_nohz_init();
 }

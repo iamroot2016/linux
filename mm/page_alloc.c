@@ -4539,6 +4539,16 @@ build_all_zonelists_init(void)
  * (2) call of __init annotated helper build_all_zonelists_init
  * [protected by SYSTEM_BOOTING].
  */
+/** 20160612
+ * zonelist를 만든다.
+ * hotplug 시마다 zonelist 구성이 달라지므로 호출되어야 한다.
+ *
+ * memory 부족시 fallback 으로 메모리를 할당 받아야 하는데,
+ * 검색하는 순서가 다르다.
+
+ * node마다 여러 개의 zone으로 구성된다.
+ * NUMA에서 node 우선 검색할지 달라진다.
+ **/
 void __ref build_all_zonelists(pg_data_t *pgdat, struct zone *zone)
 {
 	set_zonelist_order();
@@ -6207,11 +6217,22 @@ void __init free_area_init(unsigned long *zones_size)
 			__pa(PAGE_OFFSET) >> PAGE_SHIFT, NULL);
 }
 
+/** 20160612
+ * page_alloc 관련 cpu notify를 처리한다.
+ **/
 static int page_alloc_cpu_notify(struct notifier_block *self,
 				 unsigned long action, void *hcpu)
 {
 	int cpu = (unsigned long)hcpu;
 
+	/** 20160612
+	 * CPU_DEAD, CPU_DEAD_FROZEN action일 때
+	 *   hotplug시 cache 등으로 사용했던 메모리 해제들을 한다.
+	 *
+	 * - cpu의 pagevecs 속 pages들을 zone의 lru list로 옮긴다.
+	 * - cpu가 보유 중인 percpu pages를 버디 할당자로 되돌린다. 
+	 * - vm_events, vm_stats 관련 작업 처리
+	 **/
 	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
 		lru_add_drain_cpu(cpu);
 		drain_pages(cpu);
@@ -6236,8 +6257,14 @@ static int page_alloc_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
+/** 20160612
+ * page alloc 을 사용하기 전에 초기화 해준다.
+ **/
 void __init page_alloc_init(void)
 {
+	/** 20160612
+	 * page_alloc_cpu_notify를 cpu notifier chain에 priority 0으로  등록한다.
+	 **/
 	hotcpu_notifier(page_alloc_cpu_notify, 0);
 }
 

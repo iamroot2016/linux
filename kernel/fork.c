@@ -332,8 +332,17 @@ int __weak arch_dup_task_struct(struct task_struct *dst,
 	return 0;
 }
 
+/** 20160612
+ * kernel 스택 마지막에 canary를 넣는 부분
+ *   - overflow detect
+ *
+ * check하는 위치는 schedule_debug()
+ **/
 void set_task_stack_end_magic(struct task_struct *tsk)
 {
+	/** 20160612
+	 * init_task의 stack 끝의 위치
+	 **/
 	unsigned long *stackend;
 
 	stackend = end_of_stack(tsk);

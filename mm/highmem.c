@@ -393,11 +393,46 @@ static struct page_address_map page_address_maps[LAST_PKMAP];
 /*
  * Hash table bucket
  */
+/** 20160612
+ * page_address_htable는 1 << PA_HASH_ORDER개의 slot으로 이뤄져 있음.
+ * 각 htable의 slot 하나마다 lock을 사용한다.
+ *
+ * page_address_init에서 초기화.
+ *
+ *                      page_address_map
+ *                      +---------+    +---------+
+ * page_address_htable  | page    |    | page    |
+ *                      +---------+    +---------+
+ * +---------+          | virtual |    | virtual |
+ * | +-----+ |          +---------+    +---------+
+ * | | lh -|-|----------|-list  --|----|-list  --|
+ * | +-----+ |          +---------+    +---------+
+ * | | lock| |
+ * | +-----+ |   
+ * +---------+
+ * | +-----+<|------ page_address_slot
+ * | | lh  | |
+ * | +-----+ |
+ * | | lock| |
+ * | +-----+ |
+ * +---------+
+ * |   ...   |
+ * +---------+
+ * | +-----+<|------ page_address_slot
+ * | | lh  | |
+ * | +-----+ |
+ * | | lock| |
+ * | +-----+ |
+ * +---------+
+ **/
 static struct page_address_slot {
 	struct list_head lh;			/* List of page_address_maps */
 	spinlock_t lock;			/* Protect this bucket's list */
 } ____cacheline_aligned_in_smp page_address_htable[1<<PA_HASH_ORDER];
 
+/** 20131026    
+ * page에 대해 hash값을 구해 page_address_htable의 특정 slot의 주소를 가져온다.
+ **/
 static struct page_address_slot *page_slot(const struct page *page)
 {
 	return &page_address_htable[hash_ptr(page, PA_HASH_ORDER)];
@@ -475,6 +510,15 @@ done:
 	return;
 }
 
+/** 20160612
+ * CONFIG_HIGHMEM을 사용하는 경우
+ * page_address 관련 자료구조를 초기화 한다.
+ *
+ * page_address_htable과 page_address_pool, 두 가지 자료구조를 초기화 한다.
+ *
+ * page_address_htable의 slot의 list가 일반 list여야
+ * page_address_maps[i]가 자유롭게 추가되고 삭제될 수 있다.
+ **/
 void __init page_address_init(void)
 {
 	int i;

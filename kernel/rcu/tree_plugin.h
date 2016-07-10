@@ -2297,6 +2297,9 @@ static void do_nocb_deferred_wakeup(struct rcu_data *rdp)
 	trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu, TPS("DeferredWake"));
 }
 
+/** 20160626
+ * ???
+ **/
 void __init rcu_init_nohz(void)
 {
 	int cpu;

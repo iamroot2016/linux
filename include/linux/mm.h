@@ -955,15 +955,30 @@ static inline struct mem_cgroup *page_memcg(struct page *page)
  */
 #include <linux/vmstat.h>
 
+/** 20160612
+ * lowmem은 1:1 매핑.
+ * page가 매핑된 가상 주소를 물리주소를 거쳐 리턴한다.
+ **/
 static __always_inline void *lowmem_page_address(const struct page *page)
 {
 	return __va(PFN_PHYS(page_to_pfn(page)));
 }
 
+/** 20160612
+ * arm64는 HIGHMEM을 사용하지 않음.
+ * arm은 config에 따라 사용할 수 있음. 기본 설정에서는 안 씀.
+ * VA = PA 1:1 매핑이 불가능한 경우 사용.
+ *
+ * arm에서도 스마트폰이나 tv 등 대용량 물리 메모리 사용이 늘어 사용하기도 함
+ **/
 #if defined(CONFIG_HIGHMEM) && !defined(WANT_PAGE_VIRTUAL)
 #define HASHED_PAGE_VIRTUAL
 #endif
 
+/** 20160612
+ * WANT_PAGE_VIRTUAL ???
+ * arm은 define하지 않음.
+ **/
 #if defined(WANT_PAGE_VIRTUAL)
 static inline void *page_address(const struct page *page)
 {
@@ -1657,6 +1672,11 @@ static inline bool ptlock_init(struct page *page) { return true; }
 static inline void pte_lock_deinit(struct page *page) {}
 #endif /* USE_SPLIT_PTE_PTLOCKS */
 
+/** 20160626
+ * page table 관련 초기화를 수행한다.
+ *
+ * "page->ptl"용 kmem_cache를 생성한다.
+ **/
 static inline void pgtable_init(void)
 {
 	ptlock_cache_init();

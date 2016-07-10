@@ -474,6 +474,9 @@ static void __init free_highpages(void)
  * memory is free.  This is done after various parts of the system have
  * claimed their memory after the kernel image.
  */
+/** 20160626
+ * mem_map 내의 free areas를 mark 하고 buddy로 이관한다.
+ **/
 void __init mem_init(void)
 {
 #ifdef CONFIG_HAVE_TCM

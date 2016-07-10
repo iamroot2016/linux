@@ -572,6 +572,11 @@ struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
  * machine.  From a minimum of 16 slots up to 4096 slots at one gigabyte or
  * more.
  */
+/** 20160612
+ * pid를 위한 hash table 초기화.
+ *
+ * linux에서 alloc_large_system_hash을 사용하는 몇 가지 예???
+ **/
 void __init pidhash_init(void)
 {
 	unsigned int i, pidhash_size;

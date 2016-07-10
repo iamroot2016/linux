@@ -3373,6 +3373,9 @@ static int __init set_dhash_entries(char *str)
 }
 __setup("dhash_entries=", set_dhash_entries);
 
+/** 20160612
+ * dcache hash table을 생성한다.
+ **/
 static void __init dcache_init_early(void)
 {
 	unsigned int loop;

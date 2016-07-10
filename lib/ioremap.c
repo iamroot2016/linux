@@ -25,6 +25,9 @@ static int __init set_nohugeiomap(char *str)
 }
 early_param("nohugeiomap", set_nohugeiomap);
 
+/** 20160626
+ * HAVE_ARCH_HUGE_VMAP가 정의된 경우, ioremap에서 사용하기 위한 설정을 한다.
+ **/
 void __init ioremap_huge_init(void)
 {
 	if (!ioremap_huge_disabled) {

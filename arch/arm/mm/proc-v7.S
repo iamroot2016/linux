@@ -518,6 +518,11 @@ __v7_setup_stack:
 	/*
 	 * Standard v7 proc info content
 	 */
+ /** 20160529
+  * struct proc_info_list에 해당하는 값.
+  *
+  * cpu_val, cpu_mask는 제외하고 __cpu_mm_mmu_flags부터 시작.
+  **/
 .macro __v7_proc name, initfunc, mm_mmuflags = 0, io_mmuflags = 0, hwcaps = 0, proc_fns = v7_processor_functions
 	ALT_SMP(.long	PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | \
 			PMD_SECT_AF | PMD_FLAGS_SMP | \mm_mmuflags)
@@ -534,6 +539,11 @@ __v7_setup_stack:
 	.long	\proc_fns
 	.long	v7wbi_tlb_fns
 	.long	v6_user_fns
+	/** 20160529
+	 * arch/arm/mm/proc-macros.S 에서
+	 * .macro define_cache_functions name:req
+	 *		.type	\name\()_cache_fns, #object
+	 **/
 	.long	v7_cache_fns
 .endm
 
@@ -551,6 +561,9 @@ __v7_ca5mp_proc_info:
 	/*
 	 * ARM Ltd. Cortex A9 processor.
 	 */
+	 /** 20160529
+	  * value, mask 쌍으로, cpuid에 mask를 씌워 value와 같을 경우 찾는 프로세서.
+	  **/
 	.type   __v7_ca9mp_proc_info, #object
 __v7_ca9mp_proc_info:
 	.long	0x410fc090

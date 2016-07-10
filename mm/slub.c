@@ -3909,6 +3909,12 @@ static struct kmem_cache * __init bootstrap(struct kmem_cache *static_cache)
 	return s;
 }
 
+/** 20160626
+ * slub에서 사용하는 kmem_cache를 초기화.
+ * 
+ * "kmem_cache_node", "kmem_cache"를 생성.
+ * kmalloc 사이즈별로 kmem_cache를 생성.
+ **/
 void __init kmem_cache_init(void)
 {
 	static __initdata struct kmem_cache boot_kmem_cache,
