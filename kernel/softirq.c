@@ -53,6 +53,9 @@ irq_cpustat_t irq_stat[NR_CPUS] ____cacheline_aligned;
 EXPORT_SYMBOL(irq_stat);
 #endif
 
+/** 20160626
+ * softirq 전역등록
+ **/
 static struct softirq_action softirq_vec[NR_SOFTIRQS] __cacheline_aligned_in_smp;
 
 DEFINE_PER_CPU(struct task_struct *, ksoftirqd);
@@ -631,10 +634,16 @@ void tasklet_hrtimer_init(struct tasklet_hrtimer *ttimer,
 }
 EXPORT_SYMBOL_GPL(tasklet_hrtimer_init);
 
+/** 20160626
+ * softirq 초기화
+ **/
 void __init softirq_init(void)
 {
 	int cpu;
 
+	/** 20160626
+	 * tasklet과 tasklet_hi는 per-cpu 자료구조로 등록
+	 **/
 	for_each_possible_cpu(cpu) {
 		per_cpu(tasklet_vec, cpu).tail =
 			&per_cpu(tasklet_vec, cpu).head;
@@ -642,6 +651,9 @@ void __init softirq_init(void)
 			&per_cpu(tasklet_hi_vec, cpu).head;
 	}
 
+	/** 20160626
+	 * TASKLET_SOFTIRQ와 HI_SOFTIRQ raise 호출할 함수 등록
+	 **/
 	open_softirq(TASKLET_SOFTIRQ, tasklet_action);
 	open_softirq(HI_SOFTIRQ, tasklet_hi_action);
 }

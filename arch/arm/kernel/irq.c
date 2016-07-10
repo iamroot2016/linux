@@ -80,15 +80,24 @@ asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	handle_IRQ(irq, regs);
 }
 
+/** 20160626
+ * IRQ 초기화
+ **/
 void __init init_IRQ(void)
 {
 	int ret;
 
+	/** 20160626
+	 * machine마다 init_irq 정의시 호출한다.
+	 **/
 	if (IS_ENABLED(CONFIG_OF) && !machine_desc->init_irq)
 		irqchip_init();
 	else
 		machine_desc->init_irq();
 
+	/** 20160626
+	 * l2 cache 사용시 초기화
+	 **/
 	if (IS_ENABLED(CONFIG_OF) && IS_ENABLED(CONFIG_CACHE_L2X0) &&
 	    (machine_desc->l2c_aux_mask || machine_desc->l2c_aux_val)) {
 		if (!outer_cache.write_sec)
@@ -99,6 +108,9 @@ void __init init_IRQ(void)
 			pr_err("L2C: failed to init: %d\n", ret);
 	}
 
+	/** 20160626
+	 * UniPhier: full-custom outer cache controller system 초기화
+	 **/
 	uniphier_cache_init();
 }
 

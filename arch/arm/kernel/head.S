@@ -48,9 +48,40 @@
 #define PMD_ORDER	2
 #endif
 
+/** 20160528
+ * swapper_pg_dir를 전역 변수로 선언
+ *   커널가상주소 - 페이지테이블 사이즈 
+ *   
+ * PAGE_OFFSET : VMSPLIT에 따라 달라짐.
+ *   3G/1G Split일 경우 kernel address space는 0xc0000000부터 시작.
+ *
+ *   arch/arm/include/asm/memory.h에 정의
+ *      PAGE_OFFSET - the virtual address of the start of the kernel image
+ *      #define PAGE_OFFSET		UL(CONFIG_PAGE_OFFSET)
+ *
+ *
+ * TEXT_OFFSET : RAM 시작 지점으로부터 kernel image의 byte offset 값.
+ *
+ *   arch/arm/kernel/head.S에 정의
+ *   # The byte offset of the kernel image in RAM from the start of RAM.
+ *   TEXT_OFFSET := $(textofs-y)
+ *   textofs-y	:= 0x00008000
+ *
+ * PG_DIR_SIZE : LPAE를 사용하지 않는 경우 0x4000 (16KB)
+ *
+ * +-------------+ 0xc0008000   KERNEL_RAM_VADDR
+ * |             |
+ * +-------------+ 0xc0004000   swapper_pg_dir
+ * |             |
+ * +-------------+ 0xc0000000   PAGE_OFFSET       (TEXT_OFFSET 0x8000)
+ **/
 	.globl	swapper_pg_dir
 	.equ	swapper_pg_dir, KERNEL_RAM_VADDR - PG_DIR_SIZE
 
+	/** 20160529
+	 * pagetable의 물리 위치를 rd에 저장하고 리턴.
+	 * rd = phys + #TEXT_OFFSET - #PG_DIR_SIZE
+	 **/
 	.macro	pgtbl, rd, phys
 	add	\rd, \phys, #TEXT_OFFSET
 	sub	\rd, \rd, #PG_DIR_SIZE
@@ -74,10 +105,19 @@
  * crap here - that's what the boot loader (or in extreme, well justified
  * circumstances, zImage) is for.
  */
+/** 20160612
+ * are: MMU = off, D-cache = off, I-cache = dont care, r0 = 0,
+ * r1 = machine nr, r2 = atags or dtb pointer.
+ *
+ * interrupt에 대한 이야기는?
+ **/
 	.arm
 
 	__HEAD
 ENTRY(stext)
+/** 20160529
+ * [ARM ARM] Sets ENDIANSTATE to 1, for big-endian operation.
+ **/
  ARM_BE8(setend	be )			@ ensure we are in BE8 mode
 
  THUMB(	badr	r9, 1f		)	@ Kernel is always entered in ARM.
@@ -91,6 +131,16 @@ ENTRY(stext)
 	@ ensure svc mode and all interrupts masked
 	safe_svcmode_maskall r9
 
+	/** 20160529
+	 * [참고] ARM architecture reference manual
+	 * mrc  : arm core register <- coprocessor
+	 * mcr  : coprocessor       <- arm core register
+	 *
+	 * VMSA CP15 register 조회
+	 * cp15, opc1, <Rt>, CRn, CRm, opc2
+	 *
+	 * r9에 cpuid를 넣고 lookup하고, 찾은 procinfo가 r5에 저장되어 리턴.
+	 **/
 	mrc	p15, 0, r9, c0, c0		@ get processor id
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?
@@ -106,6 +156,10 @@ ENTRY(stext)
 #endif
 
 #ifndef CONFIG_XIP_KERNEL
+	/** 20160529
+	 * pc-relative address로 아래 나오는 label 2의 주소를 r3에 저장.
+	 * r3 주소를 따라가 r4, r8에 값을 읽음 (r4: location counter, r8: PAGE_OFFSET)
+	 **/
 	adr	r3, 2f
 	ldmia	r3, {r4, r8}
 	sub	r4, r3, r4			@ (PHYS_OFFSET - PAGE_OFFSET)
@@ -162,6 +216,9 @@ ENTRY(stext)
 ENDPROC(stext)
 	.ltorg
 #ifndef CONFIG_XIP_KERNEL
+	/** 20160529
+	 * [참고] http://stackoverflow.com/questions/13831462/understanding-the-location-counter-of-gnu-linker-scripts
+	 **/
 2:	.long	.
 	.long	PAGE_OFFSET
 #endif
@@ -221,12 +278,28 @@ __create_page_tables:
 #endif
 #endif
 
+	/** 20160529
+	 * procinfo의 MMUFLAGS 값을 읽어옴
+	 * procinfo : vmlinux.lds에서 __proc_info_begin ~ __proc_info_end 사이에 정의
+	 * .proc.info.init 는 arch/arm/mm/proc-v7.S 에 위치
+	 *
+	 * arch/arm/include/asm/pgtable-2level-hwdef.h
+	 * ALT_SMP(.long	PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | \
+	 *	PMD_SECT_AF | PMD_FLAGS_SMP | \mm_mmuflags)
+	 * 
+	 * 각 flag에 해당하는 필드는 Cortex-A Series Programmer Guide, 
+	 *   Figure 10-3 Level 1 page table entry format
+	 **/
 	ldr	r7, [r10, #PROCINFO_MM_MMUFLAGS] @ mm_mmuflags
 
 	/*
 	 * Create identity mapping to cater for __enable_mmu.
 	 * This identity mapping will be removed by paging_init().
 	 */
+	/** 20160529
+	 * __turn_mmu_on ~ __turn_mmu_on_end 영역을 identity mapping (VA == PA)
+	 * 하기 위해 물리주소로 변환한다.
+	 **/
 	adr	r0, __turn_mmu_on_loc
 	ldmia	r0, {r3, r5, r6}
 	sub	r0, r0, r3			@ virt->phys offset
@@ -235,6 +308,12 @@ __create_page_tables:
 	mov	r5, r5, lsr #SECTION_SHIFT
 	mov	r6, r6, lsr #SECTION_SHIFT
 
+	/** 20160529
+	 * r7 : 읽어온 MM_FLAGS값
+	 * r5 : phys __turn_mmu_on (Section Base Address Index)
+	 * r6 : phys __turn_mmu_on_end
+	 * r3 : 섹션 주소와 MM_FLAGS로 생성한 Level 1 Section Entry 값
+	 **/
 1:	orr	r3, r7, r5, lsl #SECTION_SHIFT	@ flags + kernel base
 	str	r3, [r4, r5, lsl #PMD_ORDER]	@ identity mapping
 	cmp	r5, r6

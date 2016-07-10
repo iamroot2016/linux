@@ -57,6 +57,9 @@
 #endif
 
 /* Select code for any configuration running in BE8 mode */
+/** 20160529    
+ * ARMv7은 Big Endian을 지원하므로 code가 사용된다.
+ **/
 #ifdef CONFIG_CPU_ENDIAN_BE8
 #define ARM_BE8(code...) code
 #else

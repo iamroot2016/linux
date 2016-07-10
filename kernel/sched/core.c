@@ -7311,6 +7311,17 @@ static struct kmem_cache *task_group_cache __read_mostly;
 
 DECLARE_PER_CPU(cpumask_var_t, load_balance_mask);
 
+/** 20160626
+ * scheduler가 동작하기 위해 필요한 자료구조 초기화
+ *
+ * - task group 초기화
+ *   task라는 스케쥴링 단위를 관리하기 위해 root task group이 필요하다.
+ *   possible한 cpu의 rq를 가리킬 수 있게 2차원 배열을 세팅해 둔다.
+ * - init task setting
+ * - sched domain bandwidth
+ * - rq 자료구조 초기화
+ * - idle task 초기화
+ **/
 void __init sched_init(void)
 {
 	int i, j;
@@ -7349,6 +7360,9 @@ void __init sched_init(void)
 	}
 #endif /* CONFIG_CPUMASK_OFFSTACK */
 
+	/** 20160626
+	 * rt, dl(deadline) bandwidth를 초기화
+	 **/
 	init_rt_bandwidth(&def_rt_bandwidth,
 			global_rt_period(), global_rt_runtime());
 	init_dl_bandwidth(&def_dl_bandwidth,

@@ -1219,6 +1219,13 @@ void __init vm_area_register_early(struct vm_struct *vm, size_t align)
 	vm_area_add_early(vm);
 }
 
+/** 20160626
+ * vmalloc 초기화.
+ * vmap_area와 vm_struct
+ *
+ * - vmlist에 등록되어 있던 entry를 vmap_area로 생성해 자료구조를 구성
+ *   할당받은 va는 rb tree에 넣어 관리.
+ **/
 void __init vmalloc_init(void)
 {
 	struct vmap_area *va;

@@ -1563,6 +1563,9 @@ struct task_struct {
 
 #ifdef CONFIG_CC_STACKPROTECTOR
 	/* Canary value for the -fstack-protector gcc feature */
+	/** 20160612
+	 * user stack에서 사용 가능성?
+	 **/
 	unsigned long stack_canary;
 #endif
 	/*

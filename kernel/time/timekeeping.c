@@ -679,6 +679,10 @@ void getnstimeofday64(struct timespec64 *ts)
 }
 EXPORT_SYMBOL(getnstimeofday64);
 
+/** 20160626
+ *
+ * ktime_get시 hw에서 직접 읽어오는지 확인해야 함???
+ **/
 ktime_t ktime_get(void)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
@@ -1457,6 +1461,9 @@ static bool persistent_clock_exists;
 /*
  * timekeeping_init - Initializes the clocksource and common timekeeping values
  */
+/** 20160626
+ * clocksource와 timekeeping 값을 초기화 한다.
+ **/
 void __init timekeeping_init(void)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;

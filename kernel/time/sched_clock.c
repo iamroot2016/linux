@@ -231,6 +231,9 @@ sched_clock_register(u64 (*read)(void), int bits, unsigned long rate)
 	pr_debug("Registered %pF as sched_clock source\n", read);
 }
 
+/** 20160626
+ * ???
+ **/
 void __init sched_clock_postinit(void)
 {
 	/*

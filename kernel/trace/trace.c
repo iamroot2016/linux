@@ -7468,6 +7468,11 @@ out:
 	return ret;
 }
 
+/** 20160626
+ * trace 기능 사용시 필요한 자료구조 초기화
+ * - ring buffer를 printk로 보내는 초기화
+ * - 버퍼 초기화
+ **/
 void __init trace_init(void)
 {
 	if (tracepoint_printk) {

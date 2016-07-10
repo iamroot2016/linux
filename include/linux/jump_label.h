@@ -68,6 +68,9 @@
  * Additional babbling in: Documentation/static-keys.txt
  */
 
+/** 20160612
+ * Documentation/static-keys.txt
+ **/
 #if defined(CC_HAVE_ASM_GOTO) && defined(CONFIG_JUMP_LABEL)
 # define HAVE_JUMP_LABEL
 #endif

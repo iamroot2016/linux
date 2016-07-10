@@ -48,6 +48,11 @@ __vet_atags:
 	tst	r2, #0x3			@ aligned?
 	bne	1f
 
+	/** 20160529
+	 * r2에는 atags pointer나 dtb pointer가 들어간다.
+	 * r5에 pointer가 가리키는 값을 읽어 DTB인지 magic number로 검사하고,
+	 * 그렇지 않다면 ATAG CORE를 검사한다.
+	 **/
 	ldr	r5, [r2, #0]
 #ifdef CONFIG_OF_FLATTREE
 	ldr	r6, =OF_DT_MAGIC		@ is it a DTB?
@@ -149,6 +154,21 @@ ENDPROC(lookup_processor_type)
  *	r5 = proc_info pointer in physical address space
  *	r9 = cpuid (preserved)
  */
+/** 20160529
+ * __proc_info_begin부터 __proc_info_end까지 루프를 돌면서
+ * cpuid(r9)를 Mask하여 value가 일치하면 processor info의 위치를 리턴한다
+ * Processor info의 테이블 => arch/arm/mm/proc-v7.S
+ * 
+ * .macro __v7_proc name, ... 으로 선언.
+ *
+ * processor type data를 가져와 VA와 PA차이 offset을 계산한후,
+ * offset값을 이용해 VA에서 PA값으로 보정함 (r3에는 physical Address가 로드됨)
+ *
+ * r3(physical) : __lookup_processor_type_data의 physical Address
+ * r4(virtual) : . 
+ * r5(virtual) : __proc_info_begin		
+ * r6(virtual) : __proc_info_end	
+ **/
 __lookup_processor_type:
 	adr	r3, __lookup_processor_type_data
 	ldmia	r3, {r4 - r6}

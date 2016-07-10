@@ -112,8 +112,15 @@ int __init register_persistent_clock(clock_access_fn read_boot,
 	return -EINVAL;
 }
 
+/** 20160626
+ * machine에 specific한 time 관련 초기화를 수행한다.
+ **/
 void __init time_init(void)
 {
+	/** 20160626
+	 * machine에서 init_time을 정의한 경우 호출.
+	 * 또는 devicetree를 사용하는 경우 초기화 함수 호출.
+	 **/
 	if (machine_desc->init_time) {
 		machine_desc->init_time();
 	} else {

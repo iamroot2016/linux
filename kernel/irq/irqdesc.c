@@ -286,6 +286,9 @@ int __init early_irq_init(void)
 
 #else /* !CONFIG_SPARSE_IRQ */
 
+/** 20160626
+ * machine에 정의된 NR_IRQS만큼 정적인 descriptor를 사용한다.
+ **/
 struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS-1] = {
 		.handle_irq	= handle_bad_irq,
@@ -294,11 +297,17 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	}
 };
 
+/** 20160626
+ * irq 초기화 전에 irq_desc를 초기화 한다.
+ **/
 int __init early_irq_init(void)
 {
 	int count, i, node = first_online_node;
 	struct irq_desc *desc;
 
+	/** 20160626
+	 * 어떤 cpu가 처리할지 map을 정의
+	 **/
 	init_irq_default_affinity();
 
 	printk(KERN_INFO "NR_IRQS:%d\n", NR_IRQS);
@@ -306,6 +315,9 @@ int __init early_irq_init(void)
 	desc = irq_desc;
 	count = ARRAY_SIZE(irq_desc);
 
+	/** 20160626
+	 * count만큼 구조체 초기화
+	 **/
 	for (i = 0; i < count; i++) {
 		desc[i].kstat_irqs = alloc_percpu(unsigned int);
 		alloc_masks(&desc[i], GFP_KERNEL, node);
@@ -313,6 +325,9 @@ int __init early_irq_init(void)
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
 		desc_set_defaults(i, &desc[i], node, NULL);
 	}
+	/** 20160626
+	 * architecture마다 필요할 경우 함수 hooking 코드를 사용할 수 있다.
+	 **/
 	return arch_early_irq_init();
 }
 

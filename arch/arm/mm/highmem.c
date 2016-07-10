@@ -34,6 +34,15 @@ static inline pte_t get_fixmap_pte(unsigned long vaddr)
 	return *ptep;
 }
 
+/** 20160612
+ * page에 대한 virtual adddress를 리턴한다.
+ *
+ * 단, mapping할 슬롯이 꽉차 VA를 할당받지 못할 때 sleep 하기 때문에
+ * interrupt context에서 호출되어서는 안된다.
+ *
+ * kmap: highmem의 page를 매핑해 가상 메모리를 얻어오기 위해
+ *   임시로 매핑하는 공간. 메모리는 2MB  차지.
+ **/
 void *kmap(struct page *page)
 {
 	might_sleep();
