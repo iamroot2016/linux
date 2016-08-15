@@ -87,6 +87,9 @@
 
 #define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 4))
 
+/** 20160815
+ * KERNEL : _text ~ _end
+ **/
 #define KERNEL_START      _text
 #define KERNEL_END        _end
 

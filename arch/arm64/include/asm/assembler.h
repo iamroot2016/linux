@@ -153,6 +153,10 @@ lr	.req	x30		// link register
 	 * @tmp: optional scratch register to be used if <dst> == sp, which
 	 *       is not allowed in an adrp instruction
 	 */
+	/** 20160815
+	 * tmp가 없을 경우 dst register에 symbol의 주소 전체를 저장한다.
+	 * ifb : if block
+	 **/
 	.macro	adr_l, dst, sym, tmp=
 	.ifb	\tmp
 	adrp	\dst, \sym

@@ -109,6 +109,10 @@ ENDPROC(__clean_dcache_area_pou)
  *	- start   - start address of region
  *	- end     - end address of region
  */
+/** 20160814
+ * start ~ end까지 메모리에 대한 cache를 invalidate 시킨다.
+ *   cache line 단위.
+ **/
 ENTRY(__inval_cache_range)
 	/* FALLTHROUGH */
 
