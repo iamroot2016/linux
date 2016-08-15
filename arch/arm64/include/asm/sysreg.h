@@ -34,6 +34,12 @@
  *	[11-8]  : CRm
  *	[7-5]   : Op2
  */
+/** 20160815
+ * ARMv8 ARM 설명에 따라 system register에 읽고 쓰는 명령어를 생성
+ * 왜 명령어를 직접 사용하지 않고 인코딩으로 정의하는 것인가???
+ *   => System instruction으로 따로 빠져 있지 않은,
+ *      비트값 읽고 쓰기로 제어 가능한 Virtualization registers
+ **/
 #define sys_reg(op0, op1, crn, crm, op2) \
 	((((op0)&3)<<19)|((op1)<<16)|((crn)<<12)|((crm)<<8)|((op2)<<5))
 
@@ -210,6 +216,11 @@
 	.endr
 	.equ	.L__reg_num_xzr, 31
 
+	/** 20160815
+	 * C5.1.2 System instruction class encoding overview
+	 * encoding 파트 중 sysreg로 고정된 부분.
+	 * 한 비트는 msr인지 mrs인지 결정
+	 **/
 	.macro	mrs_s, rt, sreg
 	.inst	0xd5200000|(\sreg)|(.L__reg_num_\rt)
 	.endm

@@ -41,6 +41,11 @@
 #include <asm/thread_info.h>
 #include <asm/virt.h>
 
+/** 20160815
+ * arch/arm64/Makefile에서
+ * CONFIG_ARM64_RANDOMIZE_TEXT_OFFSET면 random offset.
+ * 그렇지 않으면 0x8000
+ **/
 #define __PHYS_OFFSET	(KERNEL_START - TEXT_OFFSET)
 
 #if (TEXT_OFFSET & 0xfff) != 0
@@ -69,6 +74,16 @@
  * that are useful before the MMU is enabled. The allocations are described
  * in the entry routines.
  */
+/** 20160814
+ * kernel 진입시 요구사항
+ *   MMU = off, D-cache = off, I-cache = on or off,
+ *   x0 = physical address to the FDT blob.
+ *
+ * 왜 MMU와 D-cache는 꺼져 있어야 하나요???
+ * 참고로 arm 32비트 커널은...
+ * are: MMU = off, D-cache = off, I-cache = dont care, r0 = 0,
+ * r1 = machine nr, r2 = atags or dtb pointer.
+ **/
 	__HEAD
 _head:
 	/*
@@ -82,6 +97,9 @@ _head:
 	add	x13, x18, #0x16
 	b	stext
 #else
+	/** 20160814
+	 * EFI가 아닌 경우 stext로 branch.
+	 **/
 	b	stext				// branch to kernel start, magic
 	.long	0				// reserved
 #endif
@@ -213,6 +231,13 @@ ENTRY(stext)
 	bl	preserve_boot_args
 	bl	el2_setup			// Drop to EL1, w20=cpu_boot_mode
 	mov	x23, xzr			// KASLR offset, defaults to 0
+	/** 20160815
+	 * __PHYS_OFFSET은 random값으로 설정될 수 있음.
+	 * KASLR align을 x23에 저장.
+	 * KASLR : Kernel address space layout randomization
+	 * https://lwn.net/Articles/569635/
+	 * http://selinuxproject.org/~jmorris/lss2013_slides/cook_kaslr.pdf
+	 **/
 	adrp	x24, __PHYS_OFFSET
 	bl	set_cpu_boot_mode_flag
 	bl	__create_page_tables		// x25=TTBR0, x26=TTBR1
@@ -234,15 +259,37 @@ ENDPROC(stext)
  * Preserve the arguments passed by the bootloader in x0 .. x3
  */
 preserve_boot_args:
+	/** 20160814
+	 * FDT physical address 복사
+	 **/
 	mov	x21, x0				// x21=FDT
 
+	/** 20160814
+	 * boot_args 심볼의 pc-relative  주소를 x0에 저장.
+	 * x21과 x1을 x0가 가리키는 주소에 저장한다.
+	 *
+	 * booting.txt를 보면 x0에 dtb 주소만 저장하기로 약속되어 있다.
+	 * 왜 여기서 x0, x1, x2, x3를 부트로더에서 전달해준 주소라고
+	 * 따로 저장하나???
+	 **/
 	adr_l	x0, boot_args			// record the contents of
 	stp	x21, x1, [x0]			// x0 .. x3 at kernel entry
 	stp	x2, x3, [x0, #16]
 
+	/** 20160814
+	 * cache range를 invalidate 하기 전에 memory barrier를 둔다.
+	 *
+	 * 궁금증
+	 *  1. MMU off 상태에서 dc ivac이 무슨 의미가 있나???
+	 *  2. cache를 invalid 시킨다면 dsb가 필요한 게 아닌가?
+	 *     dmb로만 충분한가???
+	 **/
 	dmb	sy				// needed before dc ivac with
 						// MMU off
 
+	/** 20160814
+	 * cache invalidate 시킬 메모리 영역은 boot_args를 저장한 위치.
+	 **/
 	add	x1, x0, #0x20			// 4 x 8 bytes
 	b	__inval_cache_range		// tail call
 ENDPROC(preserve_boot_args)
@@ -519,9 +566,28 @@ ENTRY(kimage_vaddr)
  * booted in EL1 or EL2 respectively.
  */
 ENTRY(el2_setup)
+	/** 20160815
+	 * if (CurrentEL == EL2)
+	 *   mrs x0, sctlr_el2		// System Control Register EL2
+	 *   ...
+	 * else
+	 *   mrs, x0, sctlr_el1		// System Control Register EL1
+	 *   ...
+	 *   mov	w20, #BOOT_CPU_MODE_EL1		// This cpu booted in EL1
+	 *   ret
+	 **/
 	mrs	x0, CurrentEL
 	cmp	x0, #CurrentEL_EL2
 	b.ne	1f
+	/** 20160815
+	 * EE : Exception Endianness
+	 *   0	Littel-Endian
+	 *   1  Big-Endian
+	 * the value of the CPSR.E bit on entry to an exception vector,
+	 * including reset.
+	 * This value also indicates the endianness of the
+	 * translation table data for translation table lookups. 
+	 **/
 	mrs	x0, sctlr_el2
 CPU_BE(	orr	x0, x0, #(1 << 25)	)	// Set the EE bit for EL2
 CPU_LE(	bic	x0, x0, #(1 << 25)	)	// Clear the EE bit for EL2
@@ -531,17 +597,31 @@ CPU_LE(	bic	x0, x0, #(1 << 25)	)	// Clear the EE bit for EL2
 CPU_BE(	orr	x0, x0, #(3 << 24)	)	// Set the EE and E0E bits for EL1
 CPU_LE(	bic	x0, x0, #(3 << 24)	)	// Clear the EE and E0E bits for EL1
 	msr	sctlr_el1, x0
+	/** 20160815
+	 * w20에 EL1에서 부팅했음을 저장
+	 **/
 	mov	w20, #BOOT_CPU_MODE_EL1		// This cpu booted in EL1
 	isb
 	ret
 
 2:
+/** 20160815
+ * VHE : Virtualization Host Extensions
+ * feature가 지원된다면 kernel이 EL2에서 동작하도록 해서
+ * KVM 같은 경우 world switch 를 줄여준다.
+ **/
 #ifdef CONFIG_ARM64_VHE
 	/*
 	 * Check for VHE being present. For the rest of the EL2 setup,
 	 * x2 being non-zero indicates that we do have VHE, and that the
 	 * kernel is intended to run at EL2.
 	 */
+	/** 20160815
+	 * 아래 레지스터에 대한 세팅 :  DDI0557A_b_armv8_1_supplement
+	 * id_aa64mmfr1 :  AArch64 Memory Model Feature Register 1
+	 * ubfx         :  Unsigned bitfield extract
+	 *     UBFX <Xd>, <Xn>, #<lsb>, #<width>
+	 **/
 	mrs	x2, id_aa64mmfr1_el1
 	ubfx	x2, x2, #8, #4
 #else
@@ -549,6 +629,15 @@ CPU_LE(	bic	x0, x0, #(3 << 24)	)	// Clear the EE and E0E bits for EL1
 #endif
 
 	/* Hyp configuration. */
+	/** 20160815
+	 * EL2에서 host OS가 동작하도록 설정한다.
+	 *
+	 * cbz : Compare and Branch on Zero 
+	 * HCR_TGE : Trap General Exceptions, from Non-secure EL0.
+	 *   EL1의 exception을 EL2로 보낸다.
+	 * HCR_E2H : Enables a Host Operating System is running in EL2
+	 *   HOST OS가 EL2에서 동작하도록 한다.
+	 **/
 	mov	x0, #HCR_RW			// 64-bit EL1
 	cbz	x2, set_hcr
 	orr	x0, x0, #HCR_TGE		// Enable Host Extensions
@@ -558,31 +647,66 @@ set_hcr:
 	isb
 
 	/* Generic timers. */
+	/** 20160815
+	 * cnthctl_el2 : Counter-timer Hypervisor Control register
+	 *   Traps Non-secure EL0 and EL1 accesses to the
+	 *   physical counter register to EL2.
+	 *
+	 *   해당 비트를 1로 세팅해 trap을 발생시키지 않는다.
+	 **/
 	mrs	x0, cnthctl_el2
 	orr	x0, x0, #3			// Enable EL1 physical timers
 	msr	cnthctl_el2, x0
+	/** 20160815
+	 * offset between the physical count value visible in CNTPCT_EL0
+	 * and the virtual count value visible in CNTVCT_EL0.
+	 **/
 	msr	cntvoff_el2, xzr		// Clear virtual offset
 
 #ifdef CONFIG_ARM_GIC_V3
 	/* GICv3 system register access */
+	/** 20160815
+	 * 해당 비트의 의미는
+	 * System register interface to versions 3.0 and 4.0
+	 * of the GIC CPU interface is supported.
+	 * 지원시 GICv3를 설정한다.
+	 **/
 	mrs	x0, id_aa64pfr0_el1
 	ubfx	x0, x0, #24, #4
 	cmp	x0, #1
 	b.ne	3f
 
+	/** 20160815
+	 * ICC_SRE_EL2 : Interrupt Controller Hyp System Register Enable register
+	 * 
+	 *   각 비트의 의미는???
+	 **/
 	mrs_s	x0, ICC_SRE_EL2
 	orr	x0, x0, #ICC_SRE_EL2_SRE	// Set ICC_SRE_EL2.SRE==1
 	orr	x0, x0, #ICC_SRE_EL2_ENABLE	// Set ICC_SRE_EL2.Enable==1
 	msr_s	ICC_SRE_EL2, x0
 	isb					// Make sure SRE is now set
 	mrs_s	x0, ICC_SRE_EL2			// Read SRE back,
+	/** 20160815
+	 * TBZ Rt, bit, label // Test and branch if Rt<bit> zero
+	 **/
 	tbz	x0, #0, 3f			// and check that it sticks
+	/** 20160815
+	 * Interrupt Controller Hyp Control Register
+	 **/
 	msr_s	ICH_HCR_EL2, xzr		// Reset ICC_HCR_EL2 to defaults
 
 3:
 #endif
 
 	/* Populate ID registers. */
+	/** 20160815
+	 * 실제 ID를 읽어 대응하는 virtualization에 저장한다.
+	 * midr_el1 : Main ID Register. implement, revision 정보 등
+	 * mpidr_el1 : Multiprocessor Affinity Register
+	 * vpidr_el2 : Virtualization Processor ID Register
+	 * vmpidr_el2 : Virtualization Multiprocessor ID Register
+	 **/
 	mrs	x0, midr_el1
 	mrs	x1, mpidr_el1
 	msr	vpidr_el2, x0
@@ -595,9 +719,22 @@ set_hcr:
 	 * requires no configuration, and all non-hyp-specific EL2 setup
 	 * will be done via the _EL1 system register aliases in __cpu_setup.
 	 */
+	/** 20160815
+	 * cbnz : Compare and Branch on Nonzero
+	 * VHE를 사용하는 경우 x2에는 0이 아닌 값이 들어 있어 1로 점프.
+	 * 그렇지 않을 경우 여기에서 sctlr과 cptr 설정.
+	 **/
 	cbnz	x2, 1f
 
 	/* sctlr_el1 */
+	/** 20160815
+	 * movk : (0x33d0) << 16 | 0x0800
+	 *
+	 * sctlr_el1의 endianess 설정
+	 * EE : Endianness of data accesses at EL1, and stage 1
+	 *      translation table walks in the EL1&0 translation regime.
+	 * E0E :  Endianness of data accesses at EL0.
+	 **/
 	mov	x0, #0x0800			// Set/clear RES{1,0} bits
 CPU_BE(	movk	x0, #0x33d0, lsl #16	)	// Set EE and E0E on BE systems
 CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
@@ -605,14 +742,34 @@ CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
 
 	/* Coprocessor traps. */
 	mov	x0, #0x33ff
+	/** 20160815
+	 * cptr : Architectural Feature Trap Register
+	 * coprocessor 접근시 EL2로 trap이 발생하지 않도록 한다.
+	 **/
 	msr	cptr_el2, x0			// Disable copro. traps to EL2
 1:
 
+	/** 20160815
+	 * COMPAT : Kernel support for 32-bit EL0
+	 *
+	 * hstr_el2 : Controls trapping to Hyp mode of Non-secure
+	 *            accesses, at EL1 or lower in AArch32, 
+	 * cp15의 CRn에 접근시 EL2로 Trap을 발생시키지 않도록 설정한다.
+	 **/
 #ifdef CONFIG_COMPAT
 	msr	hstr_el2, xzr			// Disable CP15 traps to EL2
 #endif
 
 	/* EL2 debug */
+	/** 20160815
+	 * id_aa64dfr0 : AArch64 Debug Feature Register 0
+	 * pmcr_el0 : Performance Monitors Control Register
+	 * mdcr_el2 : Monitor Debug Configuration Register (EL2)
+	 *
+	 * PMU version을 읽어와 no PMU present인 경우 skip.
+	 * 버전이 있으면 EL1에서 debug 접근시 trap이 발생하지 않게 설정
+	 *   Defines the number of Performance Monitors counters that are accessible from Non-secure EL0 and EL1 modes.
+	 **/
 	mrs	x0, id_aa64dfr0_el1		// Check ID_AA64DFR0_EL1 PMUVer
 	sbfx	x0, x0, #8, #4
 	cmp	x0, #1
@@ -623,21 +780,45 @@ CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
 4:
 
 	/* Stage-2 translation */
+	/** 20160815
+	 * vttbr_el2 : Virtualization Translation Table Base Register
+	 **/
 	msr	vttbr_el2, xzr
 
+	/** 20160815
+	 * VHE가 아니면 아래 내용을 skip하고 install_el2_stub으로 점프.
+	 **/
 	cbz	x2, install_el2_stub
 
+	/** 20160815
+	 * w20에 EL2에서 부팅되었음을 기록하고 리턴.
+	 **/
 	mov	w20, #BOOT_CPU_MODE_EL2		// This CPU booted in EL2
 	isb
 	ret
 
+	/** 20160815
+	 * VHE가 아닌 경우 진행.
+	 **/
 install_el2_stub:
+	/** 20160815
+	 * arch/arm64/kernel/hyp-stub.S의 hypervisor stub vectors.
+	 *
+	 * vbar : Vector Base Address Register 
+	 * hypervisor용 exception vector 주소를 쓴다.
+	 **/
 	/* Hypervisor stub */
 	adrp	x0, __hyp_stub_vectors
 	add	x0, x0, #:lo12:__hyp_stub_vectors
 	msr	vbar_el2, x0
 
 	/* spsr */
+	/** 20160815
+	 * exception 발생이 EL1h (h는 해당 EL의 stack 사용)에서 발생한
+	 * 것으로 설정한 뒤, eret시 EL1에서 수행되도록 한다.
+	 * 복귀주소는 stext에서 el2_setup을 호출한 다음 위치이다.
+	 * w20에 EL2에서 부팅되었음을 기록한다.
+	 **/
 	mov	x0, #(PSR_F_BIT | PSR_I_BIT | PSR_A_BIT | PSR_D_BIT |\
 		      PSR_MODE_EL1h)
 	msr	spsr_el2, x0
@@ -651,12 +832,19 @@ ENDPROC(el2_setup)
  * in x20. See arch/arm64/include/asm/virt.h for more info.
  */
 ENTRY(set_cpu_boot_mode_flag)
+	/** 20160815
+	 * w20에 저장해둔 BOOT CPU MODE를 읽어 __boot_cpu_mode에 저장.
+	 * 메모리 쓰기 명령의 동기화를 위해 dmb 후 cache invalidate.
+	 **/
 	adr_l	x1, __boot_cpu_mode
 	cmp	w20, #BOOT_CPU_MODE_EL2
 	b.ne	1f
 	add	x1, x1, #4
 1:	str	w20, [x1]			// This CPU has booted in EL1
 	dmb	sy
+	/** 20160815
+	 * dc ivac : Data or unified Cache line Invalidate by VA to PoC
+	 **/
 	dc	ivac, x1			// Invalidate potentially stale cache line
 	ret
 ENDPROC(set_cpu_boot_mode_flag)
@@ -668,6 +856,9 @@ ENDPROC(set_cpu_boot_mode_flag)
  * This is not in .bss, because we set it sufficiently early that the boot-time
  * zeroing of .bss would clobber it.
  */
+/** 20160815
+ * set_cpu_boot_mode_flag에서 해당 위치에 값을 저장
+ **/
 	.pushsection	.data..cacheline_aligned
 	.align	L1_CACHE_SHIFT
 ENTRY(__boot_cpu_mode)
