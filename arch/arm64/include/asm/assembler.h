@@ -275,6 +275,12 @@ lr	.req	x30		// link register
 /*
  * reset_pmuserenr_el0 - reset PMUSERENR_EL0 if PMUv3 present
  */
+	/** 20160818
+	 * PMUSERENR : Performance Monitors User Enable Register
+	 *
+	 * if (ID_AA64DFR0_EL1.PMUVer)
+	 *	disable PMU access from EL0
+	 **/
 	.macro	reset_pmuserenr_el0, tmpreg
 	mrs	\tmpreg, id_aa64dfr0_el1	// Check ID_AA64DFR0_EL1 PMUVer
 	sbfx	\tmpreg, \tmpreg, #8, #4

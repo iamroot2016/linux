@@ -724,6 +724,7 @@ CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
 	 * id_aa64dfr0 : AArch64 Debug Feature Register 0
 	 * pmcr_el0 : Performance Monitors Control Register
 	 * mdcr_el2 : Monitor Debug Configuration Register (EL2)
+	 * sbfx : Signed Bit Field Extract (추출한 비트들을 32비트로 sign extend)
 	 *
 	 * PMU version을 읽어와 no PMU present인 경우 skip.
 	 * 버전이 있으면 EL1에서 debug 접근시 trap이 발생하지 않게 설정

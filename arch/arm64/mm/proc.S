@@ -173,13 +173,41 @@ ENDPROC(idmap_cpu_replace_ttbr1)
  *	value of the SCTLR_EL1 register.
  */
 ENTRY(__cpu_setup)
+	/** 20160818
+	 * ARMv8 PG. Table 12-1 TLB configuration instructions
+	 * TLB invalidate by VMID, All at stage 1, EL1.
+	 * vttbr_el2에 저장된 VMID를 기준으로 동작한다.
+	 *
+	 * tlb invalidate 명령을 내리고, dsb로 명령의 완료를 대기한다.
+	 **/
 	tlbi	vmalle1				// Invalidate local TLB
 	dsb	nsh
 
+	/** 20160818
+	 * cpacr_el1 : Architectural Feature Access Control Register
+	 * FPEN, bits [21:20]
+	 * Traps EL0 and EL1 accesses to the SIMD and floating-point registers
+	 * to EL1, from both Execution state:
+	 *  11 Does not cause any instruction to be trapped.
+	 *
+	 * EL1에서 Floating-point나 Adv. SIMD 레지스터를 access해도 trap을
+	 * 발생시키지 않는다.
+	 **/
 	mov	x0, #3 << 20
 	msr	cpacr_el1, x0			// Enable FP/ASIMD
+	/** 20160818
+	 * MDSCR_EL1, Monitor Debug System Control Register
+	 * TDCC, bit [12]
+	 * Traps EL0 accesses to the DCC registers to EL1, from both Execution states:
+	 * 1 EL0 accesses to the DCC registers are trapped to EL1.
+	 *
+	 * Monitor Debug System 설정을 초기화 하고, EL0에서 EL1의 DCC 레지스터 접근을 막는다.
+	 **/
 	mov	x0, #1 << 12			// Reset mdscr_el1 and disable
 	msr	mdscr_el1, x0			// access to the DCC from EL0
+	/** 20160818
+	 * EL0에서 PMU 접근을 막는다.
+	 **/
 	reset_pmuserenr_el0 x0			// Disable PMU access from EL0
 	/*
 	 * Memory region attributes for LPAE:
