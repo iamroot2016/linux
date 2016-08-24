@@ -15,6 +15,10 @@
  * arm64 requires the kernel image to placed
  * TEXT_OFFSET bytes beyond a 2 MB aligned base
  */
+/** 20160824
+ * arm64는 kernel image가 TEXT_OFFSET 바이트 위의 2MB 정렬된 베이스에
+ * 위치하도록 요구한다. 왜???
+ **/
 #define MIN_KIMG_ALIGN		SZ_2M
 
 #endif

@@ -43,9 +43,20 @@
 #include <asm/virt.h>
 
 /** 20160815
- * arch/arm64/Makefile에서
+ * TEXT_OFFSET : arch/arm64/Makefile에서
  * CONFIG_ARM64_RANDOMIZE_TEXT_OFFSET면 random offset.
- * 그렇지 않으면 0x8000
+ * 그렇지 않으면 0x80000
+ *
+ * The byte offset of the kernel image in RAM from the start of RAM.
+ * CPPFLAGS_vmlinux.lds = -DTEXT_OFFSET=$(TEXT_OFFSET)
+ * vmlinux.lds.S를 보면 
+ * . = KIMAGE_VADDR + TEXT_OFFSET;
+ *  .head.text : {
+ *      _text = .;
+ *      HEAD_TEXT
+ *  }
+ *
+ * 생성된 System.map을 보면 KERNEL_START (_text)는 ffff000008080000
  **/
 #define __PHYS_OFFSET	(KERNEL_START - TEXT_OFFSET)
 
@@ -231,10 +242,12 @@ ENTRY(stext)
 	bl	el2_setup			// Drop to EL1, w20=cpu_boot_mode
 	/** 20160815
 	 * __PHYS_OFFSET은 random값으로 설정될 수 있음.
-	 * KASLR align을 x23에 저장.
+	 * KASLR align을 x24에 저장.
 	 * KASLR : Kernel address space layout randomization
 	 * https://lwn.net/Articles/569635/
 	 * http://selinuxproject.org/~jmorris/lss2013_slides/cook_kaslr.pdf
+	 *
+	 * x23
 	 **/
 	adrp	x24, __PHYS_OFFSET
 	and	x23, x24, MIN_KIMG_ALIGN - 1	// KASLR offset, defaults to 0
