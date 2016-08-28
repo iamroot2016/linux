@@ -50,6 +50,10 @@
  * Should the bootloader fail to do this, the two values will be different.
  * This allows the kernel to flag an error when the secondaries have come up.
  */
+/** 20160827
+ * __boot_cpu_mode는 CPU들이 부팅된 모드를 기록한다.
+ * 부트로더에서 모든 cpu들이 동일한 모드에서 부팅되도록 한다.
+ **/
 extern u32 __boot_cpu_mode[2];
 
 void __hyp_set_vectors(phys_addr_t phys_vector_base);

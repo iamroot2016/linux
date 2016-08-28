@@ -125,6 +125,10 @@
 /*
  * Memory types available.
  */
+/** 20160828
+ * memory attirubte type. index 값.
+ * ARMv8 PG 13.1 Memory Type 참조.
+ **/
 #define MT_DEVICE_nGnRnE	0
 #define MT_DEVICE_nGnRE		1
 #define MT_DEVICE_GRE		2

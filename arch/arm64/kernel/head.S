@@ -56,6 +56,8 @@
  *      HEAD_TEXT
  *  }
  *
+ * KIMAGE는 VA_START + MODULES_VSIZE 128M (0x8000000)
+ *
  * 생성된 System.map을 보면 KERNEL_START (_text)는 ffff000008080000
  **/
 #define __PHYS_OFFSET	(KERNEL_START - TEXT_OFFSET)
@@ -88,7 +90,11 @@
  *   MMU = off, D-cache = off, I-cache = on or off,
  *   x0 = physical address to the FDT blob.
  *
+ * position independent 코드들이므로 __pa(PAGE_OFFSET + TEXT_OFFSET)
+ * 에서 호출해야 한다.
+ *
  * 왜 MMU와 D-cache는 꺼져 있어야 하나요???
+ *
  * 참고로 arm 32비트 커널은...
  * are: MMU = off, D-cache = off, I-cache = dont care, r0 = 0,
  * r1 = machine nr, r2 = atags or dtb pointer.
@@ -252,6 +258,10 @@ ENTRY(stext)
 	adrp	x24, __PHYS_OFFSET
 	and	x23, x24, MIN_KIMG_ALIGN - 1	// KASLR offset, defaults to 0
 	bl	set_cpu_boot_mode_flag
+	/** 20160828
+	 * idmap과 kernel 페이지 테이블을 생성한다.
+	 * 이 두 페이지테이블 주소는 각각 TTBR0과 TTBR1에 저장한다.
+	 **/
 	bl	__create_page_tables		// x25=TTBR0, x26=TTBR1
 	/*
 	 * The following calls CPU setup code, see arch/arm64/mm/proc.S for
@@ -259,7 +269,14 @@ ENTRY(stext)
 	 * On return, the CPU will be ready for the MMU to be turned on and
 	 * the TCR will have been set.
 	 */
+	/** 20160828
+	 * cpu register를 설정한다.
+	 * TCR (Translation Control Register)를 설정해 mmu를 켤 수 있도록 준비한다.
+	 **/
 	bl	__cpu_setup			// initialise processor
+	/** 20160828
+	 * MMU를 enable 시킨 뒤 jump할 __primary_switch 주소를 로드.
+	 **/
 	adr_l	x27, __primary_switch		// address to jump to after
 						// MMU has been enabled
 	b	__enable_mmu
@@ -316,6 +333,12 @@ ENDPROC(preserve_boot_args)
  * Corrupts:	tmp1, tmp2
  * Returns:	tbl -> next level table page address
  */
+	/** 20160828
+	 * table에서 virt에 해당하는 entry에 다음 레벨 table의 주소를
+	 * TABLE 속성으로 저장.
+	 *
+	 * 이후 tbl은 다음 레벨의 페이지테이블 페이지 주소를 가리킨다.
+	 **/
 	.macro	create_table_entry, tbl, virt, shift, ptrs, tmp1, tmp2
 	lsr	\tmp1, \virt, #\shift
 	and	\tmp1, \tmp1, #\ptrs - 1	// table index
@@ -332,6 +355,10 @@ ENDPROC(preserve_boot_args)
  * Preserves:	tbl, next, virt
  * Corrupts:	tmp1, tmp2
  */
+	/** 20160828
+	 * virt 영역에 대한 pgd table entry 생성.
+	 * 다음 레벨(pud, pte table)의 entry 역시 생성.
+	 **/
 	.macro	create_pgd_entry, tbl, virt, tmp1, tmp2
 	create_table_entry \tbl, \virt, PGDIR_SHIFT, PTRS_PER_PGD, \tmp1, \tmp2
 #if SWAPPER_PGTABLE_LEVELS > 3
@@ -349,6 +376,12 @@ ENDPROC(preserve_boot_args)
  * Preserves:	tbl, flags
  * Corrupts:	phys, start, end, pstate
  */
+	/** 20160828
+	 * start ~ end 영역에 대한 블록 매핑 엔트리 생성
+	 *
+	 * phys에 물리주소와 flag로 생성한 entry 값 생성.
+	 * tbl의 해당 index에 entry 저장.
+	 **/
 	.macro	create_block_map, tbl, flags, phys, start, end
 	lsr	\phys, \phys, #SWAPPER_BLOCK_SHIFT
 	lsr	\start, \start, #SWAPPER_BLOCK_SHIFT
@@ -370,6 +403,9 @@ ENDPROC(preserve_boot_args)
  *   - first few MB of the kernel linear mapping to jump to once the MMU has
  *     been enabled
  */
+/** 20160827
+ * idmap_pg_table과 swapper_pg_dir에 각각 idmap 영역과 kernel 영역을 매핑한다.
+ **/
 __create_page_tables:
 	adrp	x25, idmap_pg_dir
 	adrp	x26, swapper_pg_dir
@@ -379,6 +415,10 @@ __create_page_tables:
 	 * Invalidate the idmap and swapper page tables to avoid potential
 	 * dirty cache lines being evicted.
 	 */
+	/** 20160827
+	 * idmap과 swapper page table 영역을 invalidate 시킨다.
+	 * 더티 캐시라인이 방출되는 것을 피하기 위해.
+	 **/
 	mov	x0, x25
 	add	x1, x26, #SWAPPER_DIR_SIZE
 	bl	__inval_cache_range
@@ -386,6 +426,9 @@ __create_page_tables:
 	/*
 	 * Clear the idmap and swapper page tables.
 	 */
+	/** 20160827
+	 * idmap_pg_dir ~ (swapper_pg_dir + SWAPPER_DIR_SIZE)를 0으로 설정.
+	 **/
 	mov	x0, x25
 	add	x6, x26, #SWAPPER_DIR_SIZE
 1:	stp	xzr, xzr, [x0], #16
@@ -395,11 +438,18 @@ __create_page_tables:
 	cmp	x0, x6
 	b.lo	1b
 
+	/** 20160828
+	 * x7에 page table entry 속성을 저장한다.
+	 **/
 	mov	x7, SWAPPER_MM_MMUFLAGS
 
 	/*
 	 * Create the identity mapping.
 	 */
+	/** 20160828
+	 * idmap_pg_dir의 주소 x0에 복사.
+	 * __idmap_text_start의 주소 x3에 복사.
+	 **/
 	mov	x0, x25				// idmap_pg_dir
 	adrp	x3, __idmap_text_start		// __pa(__idmap_text_start)
 
@@ -442,7 +492,15 @@ __create_page_tables:
 1:
 #endif
 
+	/** 20160828
+	 * idmap_pg_dir에 __idmap_text_start 영역에 해당하는 entry를 생성.
+	 * 다음 레벨의 page table을 가리키는 entry도 생성.
+	 * x0는 
+	 **/
 	create_pgd_entry x0, x3, x5, x6
+	/** 20160828
+	 * __idmap_text_start ~ __idmap_text_end 영역을 블럭단위 매핑
+	 **/
 	mov	x5, x3				// __pa(__idmap_text_start)
 	adr_l	x6, __idmap_text_end		// __pa(__idmap_text_end)
 	create_block_map x0, x7, x3, x5, x6
@@ -450,10 +508,22 @@ __create_page_tables:
 	/*
 	 * Map the kernel image (starting with PHYS_OFFSET).
 	 */
+	/** 20160828
+	 * x0: swapper_pg_dir page table
+	 * x5: compile time __va(_text)
+	 **/
 	mov	x0, x26				// swapper_pg_dir
 	mov_q	x5, KIMAGE_VADDR + TEXT_OFFSET	// compile time __va(_text)
 	add	x5, x5, x23			// add KASLR displacement
+	/** 20160828
+	 * swapper_pg_dir에 커널영역에 해당하는 entry를 생성.
+	 * 다음 레벨의 page table을 가리키는 entry도 생성.
+	 **/
 	create_pgd_entry x0, x5, x3, x6
+	/** 20160828
+	 * runtime에 __va(end)를 알아오기 위해 __va(_text)에 크기를 더한다.
+	 * _text ~ _end 영역을 블럭단위 매핑
+	 **/
 	adrp	x6, _end			// runtime __pa(_end)
 	adrp	x3, _text			// runtime __pa(_text)
 	sub	x6, x6, x3			// _end - _text
@@ -465,6 +535,15 @@ __create_page_tables:
 	 * accesses (MMU disabled), invalidate the idmap and swapper page
 	 * tables again to remove any speculatively loaded cache lines.
 	 */
+	/** 20160828
+	 * idmap_pg_dir ~ swapper_pg_dir의 끝까지의 캐시를 invalidate.
+	 *
+	 * 페이지 테이블 설정이 MMU disabled 된 상태에서 non-cacheable로
+	 * 이뤄졌는데, 이 영역에 대해 다시 invalidate 시키는 이유는
+	 * speculatively에 의한 캐시 라인 로드가 발생했을지 모르기 때문.
+	 *
+	 * (speculative load는 cacheable location에서만 발생할텐데???)
+	 **/
 	mov	x0, x25
 	add	x1, x26, #SWAPPER_DIR_SIZE
 	dmb	sy
@@ -772,6 +851,7 @@ CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
 
 	/** 20160815
 	 * VHE가 아닌 경우 진행.
+	 * el2의 vector base address 레지스터에 hypervisor stub을 설치한다.
 	 **/
 install_el2_stub:
 	/** 20160815
@@ -806,7 +886,10 @@ ENDPROC(el2_setup)
  */
 set_cpu_boot_mode_flag:
 	/** 20160815
-	 * w20에 저장해둔 BOOT CPU MODE를 읽어 __boot_cpu_mode에 저장.
+	 * EL2에서 부트되지 않았다면 __boot_cpu_mode[0]에 cpu mode를 저장.
+	 * EL2에서 부트되었다면 __boot_cpu_mode[1]에 cpu mode를 저장.
+	 * 이 label은 virt.h에서 HYP mode를 사용가능한지 검사할 때 사용.
+	 * 
 	 * 메모리 쓰기 명령의 동기화를 위해 dmb 후 cache invalidate.
 	 **/
 	adr_l	x1, __boot_cpu_mode
@@ -831,6 +914,8 @@ ENDPROC(set_cpu_boot_mode_flag)
  */
 /** 20160815
  * set_cpu_boot_mode_flag에서 해당 위치에 값을 저장
+ *
+ * .bss에 저장하면 boot-time시에 0으로 초기화 하기 때문에 .data에 저장.
  **/
 	.pushsection	.data..cacheline_aligned
 	.align	L1_CACHE_SHIFT
@@ -928,8 +1013,14 @@ ENTRY(__early_cpu_boot_status)
  * Checks if the selected granule size is supported by the CPU.
  * If it isn't, park the CPU
  */
+	/** 20160828
+	 * __enable_mmu 는 idmap 영역에 놓인다.
+	 **/
 	.section	".idmap.text", "ax"
 ENTRY(__enable_mmu)
+	/** 20160828
+	 * SCTLR : System Control Register
+	 **/
 	mrs	x22, sctlr_el1			// preserve old SCTLR_EL1 value
 	mrs	x1, ID_AA64MMFR0_EL1
 	ubfx	x2, x1, #ID_AA64MMFR0_TGRAN_SHIFT, 4
@@ -981,6 +1072,9 @@ __no_granule_support:
 ENDPROC(__no_granule_support)
 
 __primary_switch:
+/** 20160828
+ * CONFIG_RELOCATABLE는 default on이 아니므로 skip. 
+ **/
 #ifdef CONFIG_RELOCATABLE
 	/*
 	 * Iterate over each entry in the relocation table, and apply the

@@ -196,6 +196,9 @@ SECTIONS
 
 	BSS_SECTION(0, 0, 0)
 
+	/** 20160827
+	 * page 단위로 정렬된 위치에 생성한다.
+	 **/
 	. = ALIGN(PAGE_SIZE);
 	idmap_pg_dir = .;
 	. += IDMAP_DIR_SIZE;

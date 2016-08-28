@@ -172,6 +172,11 @@ ENDPROC(idmap_cpu_replace_ttbr1)
  *	Initialise the processor for turning the MMU on.  Return in x0 the
  *	value of the SCTLR_EL1 register.
  */
+/** 20160828
+ * mmu를 on 시키기 위해 필요한 설정을 한다.
+ *
+ * sctlr에 설정할 값을 x0에 리턴한다.
+ **/
 ENTRY(__cpu_setup)
 	/** 20160818
 	 * ARMv8 PG. Table 12-1 TLB configuration instructions
@@ -231,6 +236,9 @@ ENTRY(__cpu_setup)
 	/*
 	 * Prepare SCTLR
 	 */
+	/** 20160828
+	 * sctlr_el1를 읽어 crval의 clear와 set 값을 적용해 값을 준비한다.
+	 **/
 	adr	x5, crval
 	ldp	w5, w6, [x5]
 	mrs	x0, sctlr_el1
@@ -248,12 +256,23 @@ ENTRY(__cpu_setup)
 	 * Read the PARange bits from ID_AA64MMFR0_EL1 and set the IPS bits in
 	 * TCR_EL1.
 	 */
+	/** 20160828
+	 * ID_AA64MMFR0_EL1로부터 PARange를 읽어 TCR_EL1의 IPS 비트를 설정.
+	 * (Intermediate Physical Address Size)
+	 **/
 	mrs	x9, ID_AA64MMFR0_EL1
+	/** 20160828
+	 * x10의 lsb 32부터 3비트는 x9의 0비트부터 3비트로 대체된다.
+	 * ID_AA64MMFR0_EL1 [3:0]은 PARange.
+	 **/
 	bfi	x10, x9, #32, #3
 #ifdef CONFIG_ARM64_HW_AFDBM
 	/*
 	 * Hardware update of the Access and Dirty bits.
 	 */
+	/** 20160828
+	 * MMFR1을 읽어 지원 여부에 따라 access flag와 dirty flag를 설정.
+	 **/
 	mrs	x9, ID_AA64MMFR1_EL1
 	and	x9, x9, #0xf
 	cbz	x9, 2f
@@ -280,6 +299,9 @@ ENDPROC(__cpu_setup)
 	 * .... .1.. .... 01.1 11.1 ..01 0.01 1101 < software settings
 	 */
 	.type	crval, #object
+	/** 20160828
+	 * sctlr 설정 비트. EE와 E0E는 el2_setup에서 설정되므로 reset 안함.
+	 **/
 crval:
 	.word	0xfcffffff			// clear
 	.word	0x34d5d91d			// set

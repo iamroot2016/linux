@@ -23,6 +23,10 @@
 
 /* PAGE_SHIFT determines the page size */
 /* CONT_SHIFT determines the number of pages which can be tracked together  */
+/** 20160827
+ * 설정된 page 크기에 따라 PAGE_SHIFT를 결정한다.
+ * CONT_SHIFT???
+ **/
 #ifdef CONFIG_ARM64_64K_PAGES
 #define PAGE_SHIFT		16
 #define CONT_SHIFT		5

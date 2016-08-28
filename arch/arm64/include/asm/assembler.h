@@ -29,6 +29,14 @@
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 
+/** 20160828
+ * 48-bit absolute address 등을 로드할 때 encoding의 범위를 벗어나는
+ * 경우, relocations 기능을 이용해 비트별로 끊어서 사용해야 한다.
+ * :abs_g0_nc: :lo12:
+ *
+ * https://www.sourceware.org/binutils/docs/as/AArch64_002dRelocations.html#AArch64_002dRelocations
+ **/
+
 /*
  * Enable and disable interrupts.
  */
@@ -243,6 +251,13 @@ lr	.req	x30		// link register
 /*
  * tcr_set_idmap_t0sz - update TCR.T0SZ so that we can load the ID map
  */
+	/** 20160828
+	 * tcp.t0sz를 idmap을 로드할 수 있도록 업데이트.
+	 * VA_BITS_48일 경우에 안 하는 이유는???
+	 * 
+	 * valreg의 #TCR_T0SZ_OFFSET에서 #TCR_TxSZ_WIDTH만큼을
+	 * tmpreg의 0번비트부터 #TCR_TxSZ_WIDTH로 대체.
+	 **/
 	.macro	tcr_set_idmap_t0sz, valreg, tmpreg
 #ifndef CONFIG_ARM64_VA_BITS_48
 	ldr_l	\tmpreg, idmap_t0sz
