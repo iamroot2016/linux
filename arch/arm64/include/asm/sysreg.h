@@ -203,6 +203,12 @@
 #define MVFR1_FPFTZ_SHIFT		0
 
 
+/** 20160829
+ * AA64MMFR0 레지스터 중 크기별 translation granule size를 나타내는 필드들
+ *
+ * D7.2.42
+ * ID_AA64MMFR0_EL1, AArch64 Memory Model Feature Register 0
+ **/
 #define ID_AA64MMFR0_TGRAN4_SHIFT	28
 #define ID_AA64MMFR0_TGRAN64_SHIFT	24
 #define ID_AA64MMFR0_TGRAN16_SHIFT	20

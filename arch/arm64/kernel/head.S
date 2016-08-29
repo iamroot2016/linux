@@ -262,6 +262,9 @@ ENTRY(stext)
 	bl	__cpu_setup			// initialise processor
 	adr_l	x27, __primary_switch		// address to jump to after
 						// MMU has been enabled
+	/** 20160829
+	 * MMU를 enable시키고, __primary_switch로 점프한다.
+	 **/
 	b	__enable_mmu
 ENDPROC(stext)
 
@@ -477,8 +480,16 @@ ENDPROC(__create_page_tables)
 /*
  * The following fragment of code is executed with the MMU enabled.
  */
+	/** 20160829
+	 * initial_sp = init_thread_union + THREAD_START_SP;
+	 **/
 	.set	initial_sp, init_thread_union + THREAD_START_SP
 __primary_switched:
+	/** 20160829
+	 * vectors를 vbar_el1 레지스터에 로드한다.
+	 * vbar : Vector Base Address Register
+	 * vectors는 어디에서 온 것인가??? label이 안 보이는데?
+	 **/
 	mov	x28, lr				// preserve LR
 	adr_l	x8, vectors			// load VBAR_EL1 with virtual
 	msr	vbar_el1, x8			// vector table address
@@ -777,7 +788,7 @@ install_el2_stub:
 	/** 20160815
 	 * arch/arm64/kernel/hyp-stub.S의 hypervisor stub vectors.
 	 *
-	 * vbar : Vector Base Address Register 
+	 * vbar : Vector Base Address Register
 	 * hypervisor용 exception vector 주소를 쓴다.
 	 **/
 	/* Hypervisor stub */
@@ -903,6 +914,10 @@ ENDPROC(__secondary_switched)
  *    it is committed to memory.
  */
 
+	/** 20160829
+	 * early cpu boot status를 업데이트한다.
+	 * status를 받아 __early_cpu_boot_status에 저장하고 cache를 invalidate.
+	 **/
 	.macro	update_early_cpu_boot_status status, tmp1, tmp2
 	mov	\tmp2, #\status
 	adr_l	\tmp1, __early_cpu_boot_status
@@ -932,13 +947,28 @@ ENTRY(__early_cpu_boot_status)
 ENTRY(__enable_mmu)
 	mrs	x22, sctlr_el1			// preserve old SCTLR_EL1 value
 	mrs	x1, ID_AA64MMFR0_EL1
+	/** 20160829
+	 * ID_AA64MMFR0_EL1에서 CONFIG의 페이지 크기에 따라 해당 비트를 추출해
+	 * HW 지원되는지 확인한다.
+	 **/
 	ubfx	x2, x1, #ID_AA64MMFR0_TGRAN_SHIFT, 4
 	cmp	x2, #ID_AA64MMFR0_TGRAN_SUPPORTED
 	b.ne	__no_granule_support
+	/** 20160829
+	 * cpu boot status에 0을 기록한다.
+	 **/
 	update_early_cpu_boot_status 0, x1, x2
+	/** 20160829
+	 * idmap_pg_dir, swapper_pg_dir을 각각 ttbr0, ttbr1에 로드한다.
+	 * TTBR 설정 후 MMU enable을 보장하기 위해 명령어 배리어를 둔다.
+	 **/
 	msr	ttbr0_el1, x25			// load TTBR0
 	msr	ttbr1_el1, x26			// load TTBR1
 	isb
+	/** 20160829
+	 * 받아온 값으로 system control register를 설정한다.
+	 * MMU enable이 켜져 이 시점부터 VA가 사용된다.
+	 **/
 	msr	sctlr_el1, x0
 	isb
 	/*
@@ -946,6 +976,12 @@ ENTRY(__enable_mmu)
 	 * speculatively from the PoC are discarded, since they may have
 	 * been dynamically patched at the PoU.
 	 */
+	/** 20160829
+	 * MMU 등 설정이 변경되었으므로 i-cache를 invalidate 시킨다.
+	 *
+	 * 로컬 i-cache를 invalidate시켜서 PoC(다른 코어 등)로부터 speculatively하게
+	 * fetch 된 명령을 버리는데, 그것들이 PoU에서 동적으로 패치되었을 수 있기 때문이다.
+	 **/
 	ic	iallu
 	dsb	nsh
 	isb
@@ -968,6 +1004,9 @@ ENTRY(__enable_mmu)
 	dsb	nsh				// via old mapping
 	isb
 #endif
+	/** 20160829
+	 * x27로 넘어온 코드를 실행한다.
+	 **/
 	br	x27
 ENDPROC(__enable_mmu)
 
