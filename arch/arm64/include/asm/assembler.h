@@ -155,6 +155,10 @@ lr	.req	x30		// link register
  * Pseudo-ops for PC-relative adr/ldr/str <reg>, <symbol> where
  * <symbol> is within the range +/- 4 GB of the PC.
  */
+	/** 20160830
+	 * pc-relative 명령들인 adr/ldr/str에 대해 PC +/- 4GB까지
+	 * 접근할 수 있도록 생성한 pseudo ops.
+	 **/
 	/*
 	 * @dst: destination register (64 bit wide)
 	 * @sym: name of the symbol
@@ -164,6 +168,8 @@ lr	.req	x30		// link register
 	/** 20160815
 	 * tmp가 없을 경우 dst register에 symbol의 주소 전체를 저장한다.
 	 * ifb : if block
+	 *
+	 * adrp로 20비트를 로드하고, 나머지 12비트를 add로 더한다.
 	 **/
 	.macro	adr_l, dst, sym, tmp=
 	.ifb	\tmp

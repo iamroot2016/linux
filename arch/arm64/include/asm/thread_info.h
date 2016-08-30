@@ -29,6 +29,9 @@
 #define THREAD_SIZE_ORDER	0
 #endif
 
+/** 20160830
+ * thread size가 16KB로 늘었다.
+ **/
 #define THREAD_SIZE		16384
 #define THREAD_START_SP		(THREAD_SIZE - 16)
 

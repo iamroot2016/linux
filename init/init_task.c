@@ -22,5 +22,8 @@ EXPORT_SYMBOL(init_task);
  * Initial thread structure. Alignment of this is handled by a special
  * linker map entry.
  */
+/** 20160830
+ * init task를 위한 thread_union. 전용 섹션에 저장된다.
+ **/
 union thread_union init_thread_union __init_task_data =
 	{ INIT_THREAD_INFO(init_task) };

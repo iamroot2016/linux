@@ -567,7 +567,8 @@ __primary_switched:
 	/** 20160829
 	 * vectors를 vbar_el1 레지스터에 로드한다.
 	 * vbar : Vector Base Address Register
-	 * vectors는 어디에서 온 것인가??? label이 안 보이는데?
+	 *
+	 * vectors는 arch/arm64/kernel/entry.S에 위치
 	 **/
 	mov	x28, lr				// preserve LR
 	adr_l	x8, vectors			// load VBAR_EL1 with virtual

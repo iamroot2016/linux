@@ -243,6 +243,15 @@ tsk	.req	x28		// current thread_info
  * Exception vectors.
  */
 
+/** 20160830
+ * ARMv8 vector table. VBAR_ELn + 0x0부터 0x80씩 주소 증가.
+ *
+ * 블럭단위로
+ * Current EL with SP0
+ * Current EL with SPx
+ * Lower EL using AArch64
+ * Lower EL using AArch32
+ **/
 	.align	11
 ENTRY(vectors)
 	ventry	el1_sync_invalid		// Synchronous EL1t
