@@ -65,6 +65,9 @@
 #include <asm/xen/hypervisor.h>
 #include <asm/mmu_context.h>
 
+/** 20160830
+ * __fdt_pointer 주소는 물리 주소. __initdata 영역에 저장.
+ **/
 phys_addr_t __fdt_pointer __initdata;
 
 /*

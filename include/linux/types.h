@@ -158,6 +158,9 @@ typedef unsigned __bitwise__ gfp_t;
 typedef unsigned __bitwise__ fmode_t;
 
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
+/** 20160830
+ * physical address는 u64.
+ **/
 typedef u64 phys_addr_t;
 #else
 typedef u32 phys_addr_t;

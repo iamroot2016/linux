@@ -167,7 +167,7 @@ lr	.req	x30		// link register
 	 */
 	/** 20160815
 	 * tmp가 없을 경우 dst register에 symbol의 주소 전체를 저장한다.
-	 * ifb : if block
+	 * ifb : if blank
 	 *
 	 * adrp로 20비트를 로드하고, 나머지 12비트를 add로 더한다.
 	 **/
@@ -333,6 +333,9 @@ lr	.req	x30		// link register
  * Annotate a function as position independent, i.e., safe to be called before
  * the kernel virtual mapping is activated.
  */
+/** 20160830
+ * position independent 함수 표기.
+ **/
 #define ENDPIPROC(x)			\
 	.globl	__pi_##x;		\
 	.type 	__pi_##x, %function;	\

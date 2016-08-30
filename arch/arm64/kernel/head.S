@@ -248,12 +248,12 @@ ENTRY(stext)
 	bl	el2_setup			// Drop to EL1, w20=cpu_boot_mode
 	/** 20160815
 	 * __PHYS_OFFSET은 random값으로 설정될 수 있음.
-	 * KASLR align을 x24에 저장.
+	 * KASLR align을 x23에 저장.
 	 * KASLR : Kernel address space layout randomization
 	 * https://lwn.net/Articles/569635/
 	 * http://selinuxproject.org/~jmorris/lss2013_slides/cook_kaslr.pdf
 	 *
-	 * x23
+	 * __PHYS_OFFSET 을 x24에 저장해둠.
 	 **/
 	adrp	x24, __PHYS_OFFSET
 	and	x23, x24, MIN_KIMG_ALIGN - 1	// KASLR offset, defaults to 0
@@ -576,6 +576,13 @@ __primary_switched:
 	isb
 
 	// Clear BSS
+	/** 20160830
+	 * BSS 영역 클리어. memset(void *s, int c, size_t n) 형식으로 호출.
+	 * memset 이후 dsb를 둔 이유는 page table walk시 zero page를
+	 * 참조해야 하기 때문.
+	 *
+	 * __pi_는 position independent. arch/arm64/include/asm/assembler.h
+	 **/
 	adr_l	x0, __bss_start
 	mov	x1, xzr
 	adr_l	x2, __bss_stop
@@ -583,10 +590,17 @@ __primary_switched:
 	bl	__pi_memset
 	dsb	ishst				// Make zero page visible to PTW
 
+	/** 20160830
+	 * initial_sp를 sp로 가리킨다.
+	 * THREAD_SIZE로 정렬시킨 주소를 sp_el0에 저장.
+	 **/
 	adr_l	sp, initial_sp, x4
 	mov	x4, sp
 	and	x4, x4, #~(THREAD_SIZE - 1)
 	msr	sp_el0, x4			// Save thread_info
+	/** 20160830
+	 * boot argument로 받은 fdt의 주소를 __fdt_pointer에 저장.
+	 **/
 	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
 
 	ldr_l	x4, kimage_vaddr		// Save the offset between
@@ -618,6 +632,9 @@ ENDPROC(__primary_switched)
  */
 	.section ".text","ax"
 
+/** 20160830
+ * 
+ **/
 ENTRY(kimage_vaddr)
 	.quad		_text - TEXT_OFFSET
 

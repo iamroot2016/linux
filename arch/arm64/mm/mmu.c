@@ -51,6 +51,9 @@
  **/
 u64 idmap_t0sz = TCR_T0SZ(VA_BITS);
 
+/** 20160831
+ * kernel virtual과 physical mapping 사이의 offset을 저장.
+ **/
 u64 kimage_voffset __read_mostly;
 EXPORT_SYMBOL(kimage_voffset);
 
