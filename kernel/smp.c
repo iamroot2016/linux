@@ -553,7 +553,10 @@ EXPORT_SYMBOL(nr_cpu_ids);
 
 /* An arch may set nr_cpu_ids earlier if needed, so this would be redundant */
 /** 20160612
- * 컴파일시 지정되는 possible mask의 숫자 + 1로 nr_cpu_ids 값을 지정.
+ * 현재 possible한 cpu 마지막 번호 +1로 nr_cpu_ids 값을 지정.
+ *
+ * possible은 boot cpu에 대해 먼저 초기화 되고, smp_cpu_setup에서 init된
+ * cpu에 대해 설정된다 (set_cpu_possible)
  **/
 void __init setup_nr_cpu_ids(void)
 {

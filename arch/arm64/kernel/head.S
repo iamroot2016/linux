@@ -603,6 +603,9 @@ __primary_switched:
 	 **/
 	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
 
+	/** 20160904
+	 * va(kimage) - pa(__PHYS_OFFSET)의 offset을 kimage_voffset에 저장
+	 **/
 	ldr_l	x4, kimage_vaddr		// Save the offset between
 	sub	x4, x4, x24			// the kernel virtual and
 	str_l	x4, kimage_voffset, x5		// physical mappings
@@ -957,6 +960,11 @@ ENTRY(__boot_cpu_mode)
 	 * This provides a "holding pen" for platforms to hold all secondary
 	 * cores are held until we're ready for them to initialise.
 	 */
+	/** 20160904
+	 * cpu ops가 smp_spin_table_ops일 경우 사용된다.
+	 *
+	 * holding pen 방식으로 secondary cpu들이 초기화 루틴을 수행하기 전까지 대기시킨다.
+	 **/
 ENTRY(secondary_holding_pen)
 	bl	el2_setup			// Drop to EL1, w20=cpu_boot_mode
 	bl	set_cpu_boot_mode_flag
@@ -975,6 +983,12 @@ ENDPROC(secondary_holding_pen)
 	 * Secondary entry point that jumps straight into the kernel. Only to
 	 * be used where CPUs are brought online dynamically by the kernel.
 	 */
+	/** 20160904
+	 * secondary cpu 부팅시 kernel entry point로 실행시키는 함수.
+	 * kernel에 의해 동적으로 online되는 cpu에만 사용되어야 한다.
+	 * 
+	 * psci 사용시 cpu_on에 대한 callback 호출시 이 entry의 물리주소를 전달한다. 
+	 **/
 ENTRY(secondary_entry)
 	bl	el2_setup			// Drop to EL1
 	bl	set_cpu_boot_mode_flag
