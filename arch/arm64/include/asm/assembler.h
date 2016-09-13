@@ -40,6 +40,10 @@
 /*
  * Enable and disable interrupts.
  */
+	/** 20160913
+	 * PSTATE의 DAIF 중 I 필드에 값을 쓰고 지우는 레지스터를 사용해
+	 * interrupt 활성화/비활성화
+	 **/
 	.macro	disable_irq
 	msr	daifset, #2
 	.endm
@@ -82,6 +86,12 @@
  * faster than two daifclr operations, since writes to this register
  * are self-synchronising.
  */
+	/** 20160913
+	 * PSTATE 중 DAIF의 값을 클리어하는 daifclr 레지스터를 통해
+	 * debug exception과 interrupts를 enable 한다.
+	 *
+	 * D.A.I.F 순서. Debug Exception Bit와 IRQ mask bit에 해당.
+	 **/
 	.macro	enable_dbg_and_irq
 	msr	daifclr, #(8 | 2)
 	.endm
