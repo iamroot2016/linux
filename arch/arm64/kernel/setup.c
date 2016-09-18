@@ -252,6 +252,9 @@ void __init setup_arch(char **cmdline_p)
 	 *  Unmask asynchronous aborts after bringing up possible earlycon.
 	 * (Report possible System Errors once we can report this occurred)
 	 */
+	/** 20160917
+	 * earlycon 설정 이후 asynchronous aborts 를 허용한다.
+	 **/
 	local_async_enable();
 
 	/*
@@ -286,6 +289,9 @@ void __init setup_arch(char **cmdline_p)
 
 	xen_early_init();
 
+	/** 20160917
+	 * boot cpu의 cpu_ops를 얻어온다.
+	 **/
 	cpu_read_bootcpu_ops();
 	smp_init_cpus();
 	smp_build_mpidr_hash();

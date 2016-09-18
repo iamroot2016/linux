@@ -499,6 +499,7 @@ int kthread_stop(struct task_struct *k)
 }
 EXPORT_SYMBOL(kthread_stop);
 
+// 구본규
 int kthreadd(void *unused)
 {
 	struct task_struct *tsk = current;

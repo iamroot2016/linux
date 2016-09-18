@@ -100,6 +100,20 @@
 #define __memexitconst   __constsection(.memexit.rodata)
 
 /* For assembly routines */
+/** 20160918
+ *  https://sourceware.org/binutils/docs/as/Section.html
+ * b  bss section (uninitialized data) 
+ * n  section is not loaded 
+ * w  writable section 
+ * d  data section 
+ * e  exclude section from linking 
+ * r  read-only section 
+ * x  executable section 
+ * s  shared section (meaningful for PE targets) 
+ * a  ignored. (For compatibility with the ELF version) 
+ * y  section is not readable (meaningful for PE targets) 
+ * 0-9  single-digit power-of-two section alignment (GNU extension)
+ **/
 #define __HEAD		.section	".head.text","ax"
 #define __INIT		.section	".init.text","ax"
 #define __FINIT		.previous

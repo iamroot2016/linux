@@ -393,10 +393,12 @@ static void __init setup_command_line(char *command_line)
 
 static __initdata DECLARE_COMPLETION(kthreadd_done);
 
+// 추후결정
 static noinline void __init_refok rest_init(void)
 {
 	int pid;
 
+	// 유희재님
 	rcu_scheduler_starting();
 	/*
 	 * We need to spawn init first so that it obtains pid 1, however
@@ -415,9 +417,12 @@ static noinline void __init_refok rest_init(void)
 	 * The boot idle thread must execute schedule()
 	 * at least once to get things moving:
 	 */
+	// 윤석훈님
 	init_idle_bootup_task(current);
+	// 윤석훈님
 	schedule_preempt_disabled();
 	/* Call into cpu_idle with preempt disabled */
+	// 윤석훈님
 	cpu_startup_entry(CPUHP_ONLINE);
 }
 
@@ -946,6 +951,7 @@ static void __init do_basic_setup(void)
 {
 	cpuset_init_smp();
 	shmem_init();
+	// 구본규님
 	driver_init();
 	init_irq_proc();
 	do_ctors();
@@ -1019,22 +1025,32 @@ static inline void mark_readonly(void)
 }
 #endif
 
+// 담당???
 static int __ref kernel_init(void *unused)
 {
 	int ret;
 
+	// 전체 - 추후결정
 	kernel_init_freeable();
 	/* need to finish all async __init code before freeing the memory */
+	// 추후결정
 	async_synchronize_full();
+	// 문영일님
 	free_initmem();
+	// 문영일님
 	mark_readonly();
 	system_state = SYSTEM_RUNNING;
+	// 문영일님
 	numa_default_policy();
 
+	// 추후결정
 	flush_delayed_fput();
 
+	// 유희재님
 	rcu_end_inkernel_boot();
 
+	// 추후결정???
+	// run_init_process 내의 do_execve
 	if (ramdisk_execute_command) {
 		ret = run_init_process(ramdisk_execute_command);
 		if (!ret)
@@ -1087,18 +1103,26 @@ static noinline void __init kernel_init_freeable(void)
 
 	cad_pid = task_pid(current);
 
+	// 유희재님
 	smp_prepare_cpus(setup_max_cpus);
 
+	// 유희재님
 	do_pre_smp_initcalls();
+	// 윤석훈님
 	lockup_detector_init();
 
+	// 유희재님
 	smp_init();
+	// 윤석훈님
 	sched_init_smp();
 
+	// 문영일님
 	page_alloc_init_late();
 	/* Initialize page ext after all struct pages are initializaed */
+	// 문영일님
 	page_ext_init();
 
+	// 추후결정
 	do_basic_setup();
 
 	/* Open the /dev/console on the rootfs, this should never fail */
@@ -1117,6 +1141,7 @@ static noinline void __init kernel_init_freeable(void)
 
 	if (sys_access((const char __user *) ramdisk_execute_command, 0) != 0) {
 		ramdisk_execute_command = NULL;
+		// 이윤재님
 		prepare_namespace();
 	}
 
@@ -1129,6 +1154,8 @@ static noinline void __init kernel_init_freeable(void)
 	 * and default modules
 	 */
 
+	// 시큐리티 담당자???
 	integrity_load_keys();
+	// 추후결정
 	load_default_modules();
 }

@@ -209,6 +209,10 @@ static unsigned long psci_migrate_info_up_cpu(void)
 			      0, 0, 0);
 }
 
+/** 20160917
+ * device_node 중 "method"를 파싱해 psci 구현 함수를 결정한다.
+ *   hvc 또는 svc 사용.
+ **/
 static int get_set_conduit_method(struct device_node *np)
 {
 	const char *method;
@@ -405,6 +409,10 @@ static void __init psci_init_cpu_suspend(void)
  * Detect the presence of a resident Trusted OS which may cause CPU_OFF to
  * return DENIED (which would be fatal).
  */
+/** 20160917
+ * Trusted OS migrate 타입을 조사해 UP에서만 동작한다면
+ * Trusted OS가 위치한 cpu에 대해 CPU_OFF를 하지 않도록 설정한다.
+ **/
 static void __init psci_init_migrate(void)
 {
 	unsigned long cpuid;
@@ -441,6 +449,9 @@ static void __init psci_init_migrate(void)
 	pr_info("Trusted OS resident on physical CPU 0x%lx\n", cpuid);
 }
 
+/** 20160917
+ * PSCI 0.2에 해당하는 콜백 함수 지정
+ **/
 static void __init psci_0_2_set_functions(void)
 {
 	pr_info("Using standard PSCI v0.2 function IDs\n");
@@ -469,6 +480,11 @@ static void __init psci_0_2_set_functions(void)
 /*
  * Probe function for PSCI firmware versions >= 0.2
  */
+/** 20160917
+ * psci probe 함수
+ * - 콜백 함수 지정
+ * - TOS migrate 초기화
+ **/
 static int __init psci_probe(void)
 {
 	u32 ver = psci_get_version();
@@ -563,6 +579,10 @@ out_put_node:
 	return err;
 }
 
+/** 20160917
+ * PSCI match table.
+ * psci 1.0 까지 구현.
+ **/
 static const struct of_device_id psci_of_match[] __initconst = {
 	{ .compatible = "arm,psci",	.data = psci_0_1_init},
 	{ .compatible = "arm,psci-0.2",	.data = psci_0_2_init},
@@ -570,6 +590,9 @@ static const struct of_device_id psci_of_match[] __initconst = {
 	{},
 };
 
+/** 20160917
+ * match table에 해당하는 psci node를 찾아 init 함수를 호출한다.
+ **/
 int __init psci_dt_init(void)
 {
 	struct device_node *np;

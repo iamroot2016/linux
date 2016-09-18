@@ -44,6 +44,13 @@ static const struct cpu_operations *acpi_supported_cpu_ops[] __initconst = {
 	NULL,
 };
 
+/** 20160917
+ * cpu 제어구현 방식을 얻어온다.
+ * 1) 비 ACPI 방식
+ *    - spin_table 방식
+ *    - PSCI 방식
+ * 2) ACPI 방식
+ **/
 static const struct cpu_operations * __init cpu_get_ops(const char *name)
 {
 	const struct cpu_operations **ops;
@@ -60,6 +67,11 @@ static const struct cpu_operations * __init cpu_get_ops(const char *name)
 	return NULL;
 }
 
+/** 20160917
+ * cpu enable_method를 읽어 리턴.
+ * 
+ * device tree를 이용하는 경우("enable-method")와 acpi를 이용하는 경우 각각 구현.
+ **/
 static const char *__init cpu_read_enable_method(int cpu)
 {
 	const char *enable_method;
@@ -103,13 +115,22 @@ static const char *__init cpu_read_enable_method(int cpu)
 /*
  * Read a cpu's enable method and record it in cpu_ops.
  */
+/** 20160917
+ * 해당 cpu의 enable method와 cpu_ops 를 얻어온다.
+ **/
 int __init cpu_read_ops(int cpu)
 {
+	/** 20160917
+	 * 해당 cpu의 enable_method 정보를 얻어온다.
+	 **/
 	const char *enable_method = cpu_read_enable_method(cpu);
 
 	if (!enable_method)
 		return -ENODEV;
 
+	/** 20160917
+	 * 해당 cpu의 cpu_ops를 얻어온다.
+	 **/
 	cpu_ops[cpu] = cpu_get_ops(enable_method);
 	if (!cpu_ops[cpu]) {
 		pr_warn("Unsupported enable-method: %s\n", enable_method);

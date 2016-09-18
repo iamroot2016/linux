@@ -126,6 +126,9 @@ static int smp_spin_table_cpu_boot(unsigned int cpu)
 	return 0;
 }
 
+/** 20160917
+ * SMP의 cpu 제어 명령이 "spin-table"로 구현된 경우(초기 방식)
+ **/
 const struct cpu_operations smp_spin_table_ops = {
 	.name		= "spin-table",
 	.cpu_init	= smp_spin_table_cpu_init,

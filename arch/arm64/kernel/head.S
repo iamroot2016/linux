@@ -1142,10 +1142,13 @@ __no_granule_support:
 	b 1b
 ENDPROC(__no_granule_support)
 
-__primary_switch:
-/** 20160828
+/** 20160917
+ * primary(boot) cpu가 mmu enabled 된 뒤 호출
+ *
  * CONFIG_RELOCATABLE는 default on이 아니므로 skip. 
+ * __primary_switched로 브랜치.
  **/
+__primary_switch:
 #ifdef CONFIG_RELOCATABLE
 	/*
 	 * Iterate over each entry in the relocation table, and apply the
@@ -1186,6 +1189,9 @@ __primary_switch:
 
 2:
 #endif
+	/** 20160917
+	 * __primary_switched 의 주소를 레지스터에 로드해 브랜치
+	 **/
 	ldr	x8, =__primary_switched
 	br	x8
 ENDPROC(__primary_switch)

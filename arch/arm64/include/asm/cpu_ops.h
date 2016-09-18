@@ -66,6 +66,9 @@ struct cpu_operations {
 extern const struct cpu_operations *cpu_ops[NR_CPUS];
 int __init cpu_read_ops(int cpu);
 
+/** 20160917
+ * boot cpu(0번)의 cpu_ops를 얻어온다.
+ **/
 static inline void __init cpu_read_bootcpu_ops(void)
 {
 	cpu_read_ops(0);
