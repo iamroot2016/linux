@@ -43,13 +43,16 @@
 #include <asm/virt.h>
 
 /** 20160815
- * TEXT_OFFSET : arch/arm64/Makefile에서
+ * TEXT_OFFSET :
+ * The byte offset of the kernel image in RAM from the start of RAM.
+ * 램의 시작으로부터, 램 안의 커널 이미지의 byte offset.
+ *
+ * arch/arm64/Makefile에서
  * CONFIG_ARM64_RANDOMIZE_TEXT_OFFSET면 random offset.
  * 그렇지 않으면 0x80000
  *
- * The byte offset of the kernel image in RAM from the start of RAM.
  * CPPFLAGS_vmlinux.lds = -DTEXT_OFFSET=$(TEXT_OFFSET)
- * vmlinux.lds.S를 보면 
+ * vmlinux.lds.S를 보면
  * . = KIMAGE_VADDR + TEXT_OFFSET;
  *  .head.text : {
  *      _text = .;
@@ -90,8 +93,8 @@
  *   MMU = off, D-cache = off, I-cache = on or off,
  *   x0 = physical address to the FDT blob.
  *
- * position independent 코드들이므로 __pa(PAGE_OFFSET + TEXT_OFFSET)
- * 에서 호출해야 한다.
+ * 대부분이 position independent 코드이므로 __pa(PAGE_OFFSET + TEXT_OFFSET)에서
+ * 호출한다.
  *
  * 왜 MMU와 D-cache는 꺼져 있어야 하나요???
  *

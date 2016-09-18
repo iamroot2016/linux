@@ -35,6 +35,9 @@
  * Context tracking subsystem.  Used to instrument transitions
  * between user and kernel mode.
  */
+	/** 20160913
+	 * context tracking. config를 사용하지 않았으므로 추후 분석.
+	 **/
 	.macro ct_user_exit, syscall = 0
 #ifdef CONFIG_CONTEXT_TRACKING
 	bl	context_tracking_user_exit
@@ -66,6 +69,15 @@
 #define BAD_FIQ		2
 #define BAD_ERROR	3
 
+
+	/* kernel_entry 매크로. el은 진입한 el:0 또는 1, regsize는 COMPAT인 경우
+	 * 1. sizeof(struct pt_regs) 만큼 stack 확보
+	 * 2. stack에 x0~x29, x30[lr], sp(el0_sp), elr_el1, spsr_el1 저장
+	 * 3. el0에서 진입한 경우 sp_el0를 pt_regs에 저장하기 위해 로드.
+	 *    tsk에 thread_info 위치 저장
+	 * 4. el0에서 진입한 경우 syscall no를 -1로 채움
+	 * pt_regs 중 orig_x0과 syscallno(-1), orig_addr_limit 안 채운 상태
+	 */
 	.macro	kernel_entry, el, regsize = 64
 	sub	sp, sp, #S_FRAME_SIZE
 	.if	\regsize == 32
@@ -106,6 +118,10 @@
 	/*
 	 * Set syscallno to -1 by default (overridden later if real syscall).
 	 */
+	/** 20160913
+	 * mvn : bitwise NOT. xzr을 모두 뒤집은 값이므로 all 1.
+	 * syscall일 경우 SYSCALLNO는 추후 저장.
+	 **/
 	.if	\el == 0
 	mvn	x21, xzr
 	str	x21, [sp, #S_SYSCALLNO]
@@ -174,6 +190,10 @@ alternative_endif
 	eret					// return to kernel
 	.endm
 
+	/** 20160913
+	 * struct thread_info가 overlay 된 stack의 시작 위치를 가져온다.
+	 * 현재 sp(el1)를 rd에 저장. rd는 보통 tsk로 이름 붙인 x28.
+	 **/
 	.macro	get_thread_info, rd
 	mrs	\rd, sp_el0
 	.endm
@@ -444,6 +464,14 @@ el1_preempt:
 /*
  * EL0 mode handlers.
  */
+	/* kernel_entry 0
+	 * ESR_ELx_EC_SVC64일 경우 EL0에서 svc 호출 => el0_svc
+	 *     el0_svc에서 orig_x0, syscallno (w8로 들어옴)을 pt_regs에 저장
+	 *
+	 * [참고]
+	 *    assembly macro 선언 => arch/arm64/include/asm/assembler.h
+	 *    pt_regs 선언        => arch/arm64/include/asm/ptrace.h
+	 */
 	.align	6
 el0_sync:
 	kernel_entry 0
@@ -724,6 +752,12 @@ ENDPROC(ret_from_fork)
  */
 	.align	6
 el0_svc:
+	/** 20160913
+	 * 1. pt_regs에 orig_x0과 syscallno 저장
+	 * 2. syscall limit 검사.
+	 *    유효한 값이면 system call table에서 넘버에 해당하는 핸들러 호출.
+	 * 3. ret_fast_syscall로 리턴.
+	 **/
 	adrp	stbl, sys_call_table		// load syscall table pointer
 	uxtw	scno, w8			// syscall number in w8
 	mov	sc_nr, #__NR_syscalls
