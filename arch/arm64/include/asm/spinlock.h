@@ -58,8 +58,22 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 
 	asm volatile(
 	/* Atomically increment the next ticket. */
+	/** 20161001
+	 * LL/SC 파트와 LSE (ARMv8.1에 도입된 Larse System Extention)
+	 **/
 	ARM64_LSE_ATOMIC_INSN(
 	/* LL/SC */
+	/** 20161001
+	 * ldaxr : Load-acquire exclusive register
+	 *         (one way barrier)
+	 *
+	 * 1:
+	 * lockval = *lock;
+	 * newval = lockval + (1<< TICKET_SHIFT)
+	 * *lock = newval; w2 = monitor_value;
+	 * if (monitor_value)
+	 *	goto 1;		// retry
+	 **/
 "	prfm	pstl1strm, %3\n"
 "1:	ldaxr	%w0, %3\n"
 "	add	%w1, %w0, %w5\n"
@@ -73,6 +87,13 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 "	nop\n"
 	)
 
+	/** 20161001
+	 * newval = lockval ^ (lockval ror 16);
+	 * if (!newval)
+	 *	goto 3;		// lock을 획득한 상태로 리턴.
+	 * ticket의 next와 owner가 같다면 lock을 획득할 수 있다.
+	 * armv7의 spinlock 소스 참고.
+	 **/
 	/* Did we get the lock? */
 "	eor	%w1, %w0, %w0, ror #16\n"
 "	cbz	%w1, 3f\n"
@@ -80,6 +101,9 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 	 * No: spin on the owner. Send a local event to avoid missing an
 	 * unlock before the exclusive load.
 	 */
+	/** 20161001
+	 * sevl: Send Event Local
+	 **/
 "	sevl\n"
 "2:	wfe\n"
 "	ldaxrh	%w2, %4\n"
