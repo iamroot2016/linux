@@ -12,6 +12,9 @@
 /* Optimization barrier */
 
 /* The "volatile" is due to gcc bugs */
+/** 20161029
+ * 컴파일러 차원의 최적화 장벽을 사용한다.
+ **/
 #define barrier() __asm__ __volatile__("": : :"memory")
 /*
  * This version is i.e. to prevent dead stores elimination on @ptr

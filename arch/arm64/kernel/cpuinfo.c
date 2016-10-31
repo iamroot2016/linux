@@ -37,6 +37,10 @@
  * current state separately. Certain system registers may contain different
  * values depending on configuration at or after reset.
  */
+/** 20161029
+ * 정적 percpu 변수 cpu_data를 선언.
+ * 전역 변수 boot_cpu_data를 별도로 선언.
+ **/
 DEFINE_PER_CPU(struct cpuinfo_arm64, cpu_data);
 static struct cpuinfo_arm64 boot_cpu_data;
 
@@ -200,6 +204,9 @@ static void cpuinfo_detect_icache_policy(struct cpuinfo_arm64 *info)
 	pr_info("Detected %s I-cache on CPU%d\n", icache_policy_str[l1ip], cpu);
 }
 
+/** 20161029
+ * cpuinfo_arm64 구조체의 정보를 채운다.
+ **/
 static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 {
 	info->reg_cntfrq = arch_timer_get_cntfrq();
@@ -245,6 +252,10 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 
 void cpuinfo_store_cpu(void)
 {
+	/** 20161029
+	 * percpu 변수 cpu_data 중 현재 cpu에 대한 info를 찾아
+	 * cpuinfo 저장용 함수에 넘겨 저장한다.
+	 **/
 	struct cpuinfo_arm64 *info = this_cpu_ptr(&cpu_data);
 	__cpuinfo_store_cpu(info);
 	update_cpu_features(smp_processor_id(), info, &boot_cpu_data);

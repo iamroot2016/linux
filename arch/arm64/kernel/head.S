@@ -47,21 +47,9 @@
  * The byte offset of the kernel image in RAM from the start of RAM.
  * 램의 시작으로부터, 램 안의 커널 이미지의 byte offset.
  *
- * arch/arm64/Makefile에서
- * CONFIG_ARM64_RANDOMIZE_TEXT_OFFSET면 random offset.
- * 그렇지 않으면 0x80000
- *
  * CPPFLAGS_vmlinux.lds = -DTEXT_OFFSET=$(TEXT_OFFSET)
- * vmlinux.lds.S를 보면
- * . = KIMAGE_VADDR + TEXT_OFFSET;
- *  .head.text : {
- *      _text = .;
- *      HEAD_TEXT
- *  }
  *
- * KIMAGE는 VA_START + MODULES_VSIZE 128M (0x8000000)
- *
- * 생성된 System.map을 보면 KERNEL_START (_text)는 ffff000008080000
+ * System.map을 보면 KERNEL_START (_text)는 ffff000008080000
  **/
 #define __PHYS_OFFSET	(KERNEL_START - TEXT_OFFSET)
 
@@ -101,6 +89,31 @@
  * 참고로 arm 32비트 커널은...
  * are: MMU = off, D-cache = off, I-cache = dont care, r0 = 0,
  * r1 = machine nr, r2 = atags or dtb pointer.
+ *
+ *
+ * #define __HEAD		.section	".head.text","ax"
+ *
+ * vmlinux.lds.S에
+ *	. = KIMAGE_VADDR + TEXT_OFFSET;
+ *	.head.text : {
+ *		_text = .;
+ *		HEAD_TEXT
+ *	}
+ *
+ * KIMAGE_VADDR => MODULES_END => MODULES_VADDR + MODULES_VSIZE
+ *   MODULES_VADDR => VA_START + KASAN_SHADOW_SIZE
+ *     VA_START	              (UL(0xffffffffffffffff) << VA_BITS)
+ *       VA_BITS              (CONFIG_ARM64_VA_BITS) // defconfig은 48
+ *       // arch/arm64/include/asm/memory.h
+ *     KASAN_SHADOW_SIZE      (0)	// KASAN 사용 안하는 경우
+ *   MODULES_VSIZE            (SZ_128M) // 0x8000000
+ * 
+ * TEXT_OFFSET                build시 randomize 안 하면 0x00080000
+ *                            하면 random offset.
+ *       // arch/arm64/Makefile
+ *
+ * System.map을 보면_text의 주소를 알 수 있다.
+ * defconfig 대로 빌드했을 경우 이 주소는 0xffff000008080000
  **/
 	__HEAD
 _head:
@@ -298,8 +311,8 @@ preserve_boot_args:
 	mov	x21, x0				// x21=FDT
 
 	/** 20160814
-	 * boot_args 심볼의 pc-relative  주소를 x0에 저장.
-	 * x21과 x1을 x0가 가리키는 주소에 저장한다.
+	 * boot_args 심볼의 pc-relative  주소를 x0에 로드.
+	 * x21과 x1, x2, x3를 x0가 가리키는 주소에 저장한다.
 	 *
 	 * booting.txt를 보면 x0에 dtb 주소만 저장하기로 약속되어 있다.
 	 * 왜 여기서 x0, x1, x2, x3를 부트로더에서 전달해준 주소라고

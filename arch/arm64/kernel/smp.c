@@ -81,6 +81,9 @@ enum ipi_msg_type {
 /* Whether the boot CPU is running in HYP mode or not*/
 static bool boot_cpu_hyp_mode;
 
+/** 20161029
+ * boot cpu가 HYP mode에서 동작 중인지 아닌지를 저장한다.
+ **/
 static inline void save_boot_cpu_run_el(void)
 {
 	boot_cpu_hyp_mode = is_kernel_in_hyp_mode();
@@ -437,7 +440,13 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 void __init smp_prepare_boot_cpu(void)
 {
+	/** 20161029
+	 * boot cpu의 cpufinfo 정보를 저장한다.
+	 **/
 	cpuinfo_store_boot_cpu();
+	/** 20161029
+	 * boot cpu가 HYP mode에서 동작 중인지 아닌지 저장한다.
+	 **/
 	save_boot_cpu_run_el();
 	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
 }

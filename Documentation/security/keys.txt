@@ -1,19 +1,26 @@
 			 ============================
 			 KERNEL KEY RETENTION SERVICE
 			 ============================
+			 커널 KEY 보유 서비스
 
+이 서비스는 암호 키, 인증 토큰, 크로스-도메인 유저 매핑, 그리고
+파일시스템과 다른 커널 서비스를 위해 커널에 캐시되는 것과 유사한 것을 제공한다.
 This service allows cryptographic keys, authentication tokens, cross-domain
 user mappings, and similar to be cached in the kernel for the use of
 filesystems and other kernel services.
 
+키링이 허용된다;  이것들은 특별한 키의 종류로써 다른 키에 대한 링크를 가질 수 있다.
+프로세스들 각각은 커널 서비스가 상응하는 키를 찾을 수 있도록 하는 세개의 표준 키링 구독자를 갖고 있다. 
 Keyrings are permitted; these are a special type of key that can hold links to
 other keys. Processes each have three standard keyring subscriptions that a
 kernel service can search for relevant keys.
 
+키 서비스는 다음 설정을 활성화시킴으로써 설정 가능하다.
 The key service can be configured on by enabling:
 
 	"Security options"/"Enable access key retention support" (CONFIG_KEYS)
 
+이 문서는 아래 섹션들을 포함하고 있다.
 This document has the following sections:
 
 	- Key overview
@@ -33,9 +40,12 @@ This document has the following sections:
 KEY OVERVIEW
 ============
 
+여기서 말하는 keys는 암호화 데이터의 단위, 인증 토큰, keyring 등을 나타낸다.
+이것들은 커널에서 struct key로 표현된다.
 In this context, keys represent units of cryptographic data, authentication
 tokens, keyrings, etc.. These are represented in the kernel by struct key.
 
+각 key는 다양한 속성들을 포함한다.
 Each key has a number of attributes:
 
 	- A serial number.

@@ -129,11 +129,18 @@ extern void preempt_count_sub(int val);
 #define preempt_count_dec_and_test() \
 	({ preempt_count_sub(1); should_resched(0); })
 #else
+/** 20161029
+ * debug 없이 preempt_count만 증가/감소/감소 및 테스트 한다.
+ **/
 #define preempt_count_add(val)	__preempt_count_add(val)
 #define preempt_count_sub(val)	__preempt_count_sub(val)
 #define preempt_count_dec_and_test() __preempt_count_dec_and_test()
 #endif
 
+/** 20161029
+ *  __preempt_count_inc / __preempt_count_dec
+ *  선점 카운트를 1 증가 또는 1 감소시킨다.
+ **/
 #define __preempt_count_inc() __preempt_count_add(1)
 #define __preempt_count_dec() __preempt_count_sub(1)
 
@@ -142,6 +149,10 @@ extern void preempt_count_sub(int val);
 
 #ifdef CONFIG_PREEMPT_COUNT
 
+/** 20161029
+ * PREEMPT_COUNT를 사용하는 것은 선점형 커널로 동작함을 의미한다.
+ * 선점 카운트를 증가시켜 선점 불가로 만든다.
+ **/
 #define preempt_disable() \
 do { \
 	preempt_count_inc(); \

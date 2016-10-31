@@ -72,6 +72,9 @@ static inline bool is_hyp_mode_mismatched(void)
 	return __boot_cpu_mode[0] != __boot_cpu_mode[1];
 }
 
+/** 20161029
+ * 현재 EL을 받아와 EL2인지 아닌지를 리턴한다.
+ **/
 static inline bool is_kernel_in_hyp_mode(void)
 {
 	u64 el;

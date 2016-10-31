@@ -30,6 +30,11 @@
  * the key and elements in the array are of the same type, you can use
  * the same comparison function for both sort() and bsearch().
  */
+/** 20161029
+ * array를 binary search하는 함수.
+ * array의 내용은 제공된 비교함수로 오름차순 정렬되어 있어야 한다.
+ * 
+ **/
 void *bsearch(const void *key, const void *base, size_t num, size_t size,
 	      int (*cmp)(const void *key, const void *elt))
 {

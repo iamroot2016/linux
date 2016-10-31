@@ -1622,6 +1622,10 @@ union security_list_options {
 #endif /* CONFIG_AUDIT */
 };
 
+/** 20161030
+ * security hook 리스트를 등록하기 위한 head들.
+ * 작업별로 선언되어 있다.
+ **/
 struct security_hook_heads {
 	struct list_head binder_set_context_mgr;
 	struct list_head binder_transaction;
@@ -1849,11 +1853,19 @@ struct security_hook_list {
  * care of the common case and reduces the amount of
  * text involved.
  */
+/** 20161030
+ * LSM HOOK 구조체 초기값
+ **/
 #define LSM_HOOK_INIT(HEAD, HOOK) \
 	{ .head = &security_hook_heads.HEAD, .hook = { .HEAD = HOOK } }
 
 extern struct security_hook_heads security_hook_heads;
 
+/** 20161030
+ * hooks 리스트에 hooks를 추가한다.
+ *
+ * hooks의 heads는 초기화된 상태로 들어온다.
+ **/
 static inline void security_add_hooks(struct security_hook_list *hooks,
 				      int count)
 {

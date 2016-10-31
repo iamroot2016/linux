@@ -1067,6 +1067,9 @@ int cap_mmap_file(struct file *file, unsigned long reqprot,
 
 #ifdef CONFIG_SECURITY
 
+/** 20161030
+ * capability의 hook 리스트
+ **/
 struct security_hook_list capability_hooks[] = {
 	LSM_HOOK_INIT(capable, cap_capable),
 	LSM_HOOK_INIT(settime, cap_settime),
@@ -1088,6 +1091,11 @@ struct security_hook_list capability_hooks[] = {
 	LSM_HOOK_INIT(vm_enough_memory, cap_vm_enough_memory),
 };
 
+/** 20161030
+ * capability의 hook 리스트를 등록한다.
+ *
+ * LSM 인터페이스를 사용해 hook 리스트를 등록한다.
+ **/
 void __init capability_add_hooks(void)
 {
 	security_add_hooks(capability_hooks, ARRAY_SIZE(capability_hooks));

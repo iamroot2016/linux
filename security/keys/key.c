@@ -1146,19 +1146,31 @@ EXPORT_SYMBOL(unregister_key_type);
 /*
  * Initialise the key management state.
  */
+/** 20161030
+ * 키 관련 초기화.
+ **/
 void __init key_init(void)
 {
 	/* allocate a slab in which we can store keys */
+	/** 20161030
+	 * key 구조체용 kmem_cache 생성.
+	 **/
 	key_jar = kmem_cache_create("key_jar", sizeof(struct key),
 			0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
 
 	/* add the special key types */
+	/** 20161030
+	 * 특별한 key type 들을 리스트에 등록한다.
+	 **/
 	list_add_tail(&key_type_keyring.link, &key_types_list);
 	list_add_tail(&key_type_dead.link, &key_types_list);
 	list_add_tail(&key_type_user.link, &key_types_list);
 	list_add_tail(&key_type_logon.link, &key_types_list);
 
 	/* record the root user tracking */
+	/** 20161030
+	 * key_user_tree에 root user를 추가한다.
+	 **/
 	rb_link_node(&root_key_user.node,
 		     NULL,
 		     &key_user_tree.rb_node);

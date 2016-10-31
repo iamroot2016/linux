@@ -58,8 +58,23 @@ int __init security_init(void)
 	/*
 	 * Load minor LSMs, with the capability module always first.
 	 */
+	/** 20161030
+	 * capability의 hook들을 리스트에 등록한다.
+	 *
+	 * SECURITY가 config되어 있다면 초기값으로 설정된다.
+	 **/
 	capability_add_hooks();
+	/** 20161030
+	 * yama의 hook들을 리스트에 등록한다.
+	 * 
+	 * YAMA가 config되지 않으면 NULL 함수.
+	 **/
 	yama_add_hooks();
+	/** 20161030
+	 * loadpin의 hook들을 리스트에 등록한다.
+	 *
+	 * LOADPIN이 config되지 않으면 NULL 함수.
+	 **/
 	loadpin_add_hooks();
 
 	/*
@@ -1547,6 +1562,9 @@ int security_audit_rule_match(u32 secid, u32 field, u32 op, void *lsmrule,
 }
 #endif /* CONFIG_AUDIT */
 
+/** 20161030
+ * security_hook_heads 초기화.
+ **/
 struct security_hook_heads security_hook_heads = {
 	.binder_set_context_mgr =
 		LIST_HEAD_INIT(security_hook_heads.binder_set_context_mgr),

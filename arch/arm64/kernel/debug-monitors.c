@@ -288,6 +288,10 @@ static int single_step_handler(unsigned long addr, unsigned int esr,
 static LIST_HEAD(break_hook);
 static DEFINE_SPINLOCK(break_hook_lock);
 
+/** 20161029
+ * break_hook 리스트에 hook을 추가한다. rcu 업데이트 사용.
+ * spinlock으로 보호한다.
+ **/
 void register_break_hook(struct break_hook *hook)
 {
 	spin_lock(&break_hook_lock);
@@ -309,6 +313,10 @@ static int call_break_hook(struct pt_regs *regs, unsigned int esr)
 	int (*fn)(struct pt_regs *regs, unsigned int esr) = NULL;
 
 	rcu_read_lock();
+	/** 20161029
+	 * break_hook 리스트에 등록되어 있던 hook 중 넘어온 esr을
+	 * 처리할 handler를 찾아 호출한다.
+	 **/
 	list_for_each_entry_rcu(hook, &break_hook, node)
 		if ((esr & hook->esr_mask) == hook->esr_val)
 			fn = hook->fn;

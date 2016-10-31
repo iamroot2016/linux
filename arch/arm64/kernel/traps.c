@@ -523,6 +523,9 @@ int is_valid_bugaddr(unsigned long addr)
 	return 1;
 }
 
+/** 20161029
+ * 커널 버그 핸들러
+ **/
 static int bug_handler(struct pt_regs *regs, unsigned int esr)
 {
 	if (user_mode(regs))
@@ -565,6 +568,9 @@ int __init early_brk64(unsigned long addr, unsigned int esr,
 }
 
 /* This registration must happen early, before debug_traps_init(). */
+/** 20161029
+ * 버그 처리용 hook을 등록한다.
+ **/
 void __init trap_init(void)
 {
 	register_break_hook(&bug_break_hook);
