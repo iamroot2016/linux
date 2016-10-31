@@ -42,9 +42,11 @@
 #include <asm/virt.h>
 
 /** 20160815
- * arch/arm64/Makefile에서
- * CONFIG_ARM64_RANDOMIZE_TEXT_OFFSET면 random offset.
- * 그렇지 않으면 0x8000
+ * __PHYS_OFFSET은 KERNEL_STRT (_text) - TEXT_OFFSET으로
+ *
+ * TEXT_OFFSET은 arch/arm64/Makefile에서
+ *  CONFIG_ARM64_RANDOMIZE_TEXT_OFFSET면 random offset.
+ *  그렇지 않으면 0x80000
  **/
 #define __PHYS_OFFSET	(KERNEL_START - TEXT_OFFSET)
 
@@ -232,6 +234,10 @@ ENTRY(stext)
 	bl	el2_setup			// Drop to EL1, w20=cpu_boot_mode
 	mov	x23, xzr			// KASLR offset, defaults to 0
 	/** 20160815
+	 * MMU가 켜지기 전 __PHYS_OFFSET은 커널 영역의 시작 주소(물리)
+	 *
+	 * adrp : pc-relative address로 받아옴
+	 *
 	 * __PHYS_OFFSET은 random값으로 설정될 수 있음.
 	 * KASLR align을 x23에 저장.
 	 * KASLR : Kernel address space layout randomization
