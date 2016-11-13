@@ -50,6 +50,11 @@
  * Rearranging it a bit we get :
  *   (4 - n) * (PAGE_SHIFT - 3) + 3
  */
+/** 20161113
+ * ex. PAGE_SHIFT 12이고 2가 들어온 경우
+ *    9 * (4-2) * 3 = 21.
+ *    1<<21 = 2MB
+ **/
 #define ARM64_HW_PGTABLE_LEVEL_SHIFT(n)	((PAGE_SHIFT - 3) * (4 - (n)) + 3)
 
 #define PTRS_PER_PTE		(1 << (PAGE_SHIFT - 3))
@@ -57,6 +62,9 @@
 /*
  * PMD_SHIFT determines the size a level 2 page table entry can map.
  */
+/** 20161113
+ * 현재 config로 VA 39bit, PAGE_SHIFT 12bit, PGTABLE LEVELS 3
+ **/
 #if CONFIG_PGTABLE_LEVELS > 2
 #define PMD_SHIFT		ARM64_HW_PGTABLE_LEVEL_SHIFT(2)
 #define PMD_SIZE		(_AC(1, UL) << PMD_SHIFT)
@@ -78,6 +86,13 @@
  * PGDIR_SHIFT determines the size a top-level page table entry can map
  * (depending on the configuration, this level can be 0, 1 or 2).
  */
+/** 20161113
+ * PAGE_SHIFT : 12 (4KB), VA_BITS : 39, PGTABLE_LEVEL : 3인 경우
+ *
+ * 4 - CONFIG_PGTABLE_LEVELS = 4 - 3 = 1
+ * PGDIR_SHIFT : ARM64_HW_PGTABLE_LEVEL_SHIFT(1) = ((PAGE_SHIFT - 3) * (4 - 1) + 3) = 30
+ * PTRS_PER_PGD: 1 << (39 - 30). 즉 PGD 당 pointer는 512개
+ **/
 #define PGDIR_SHIFT		ARM64_HW_PGTABLE_LEVEL_SHIFT(4 - CONFIG_PGTABLE_LEVELS)
 #define PGDIR_SIZE		(_AC(1, UL) << PGDIR_SHIFT)
 #define PGDIR_MASK		(~(PGDIR_SIZE-1))
@@ -208,6 +223,9 @@
 /*
  * TCR flags.
  */
+/** 20161113
+ * TCR_T0SZ(39)	= ((UL(64) - (39)) << TCR_T0SZ_OFFSET) = 25 << 0 = 25
+ **/
 #define TCR_T0SZ_OFFSET		0
 #define TCR_T1SZ_OFFSET		16
 #define TCR_T0SZ(x)		((UL(64) - (x)) << TCR_T0SZ_OFFSET)

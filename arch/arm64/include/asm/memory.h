@@ -47,6 +47,14 @@
  * TASK_SIZE - the maximum size of a user space task.
  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area.
  */
+/** 20161113
+ * VA_START는 VA_BITS가 39인 경우 0xffffff8000000000
+ * KASAN_SHADOW_SIZE는 config에 따라 0.
+ * MODULES_VSIZE는 0x08000000
+ * MODULES_END = KIMAGE_VADDR =
+ *   VA_START + MODULES_VSIZE
+ *   0xffffff8000000000 + 0x8000000 = 0xffffff8008000000
+ **/
 #define VA_BITS			(CONFIG_ARM64_VA_BITS)
 #define VA_START		(UL(0xffffffffffffffff) << VA_BITS)
 #define PAGE_OFFSET		(UL(0xffffffffffffffff) << (VA_BITS - 1))

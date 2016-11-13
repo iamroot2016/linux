@@ -43,6 +43,9 @@
 
 /** 20160815
  * __PHYS_OFFSET은 KERNEL_STRT (_text) - TEXT_OFFSET으로
+ *   VA 39BIT에서는 0xffffff8008000000 이다.
+ *
+ * _text는 vmlinux.lds.S를 보면 KIMAGE_VADDR + TEXT_OFFSET이다.
  *
  * TEXT_OFFSET은 arch/arm64/Makefile에서
  *  CONFIG_ARM64_RANDOMIZE_TEXT_OFFSET면 random offset.
@@ -345,6 +348,9 @@ ENDPROC(preserve_boot_args)
  * Preserves:	tbl, flags
  * Corrupts:	phys, start, end, pstate
  */
+	/** 20161113
+	 * page table 블럭 매핑 매크로
+	 **/
 	.macro	create_block_map, tbl, flags, phys, start, end
 	lsr	\phys, \phys, #SWAPPER_BLOCK_SHIFT
 	lsr	\start, \start, #SWAPPER_BLOCK_SHIFT
@@ -366,11 +372,18 @@ ENDPROC(preserve_boot_args)
  *   - first few MB of the kernel linear mapping to jump to once the MMU has
  *     been enabled
  */
+/** 20161113
+ * 초기 페이지 테이블을 설정한다. 오직 커널이 당장 수행하는데 필요한 영역만 설정한다.
+ *   - identity mapping은 MMU enable 하기 위해 설정한다. va와 pa가 1:1 매핑된다.
+ *   - MMU가 enabled 되고 난 뒤 kernel 이미지 영역을 선형 매핑한다.
+ **/
 __create_page_tables:
 	/** 20161113
 	 * vmlinux.lds.S에 정의된 심볼로,
 	 * 빌드시 페이지 단위로 정렬된 주소에 idmap_pg_dir과 swapper_pg_dir 공간을 확보하고 
 	 * 런타임에 해당 영역의 위치를 받아온다.
+	 *
+	 * x28에 복귀주소를 저장한다.
 	 **/
 	adrp	x25, idmap_pg_dir
 	adrp	x26, swapper_pg_dir
@@ -381,7 +394,7 @@ __create_page_tables:
 	 * dirty cache lines being evicted.
 	 */
 	/** 20161113
-	 * idmap과 swapper 페이지 테이블 영역에 대해 cache를 날린다.
+	 * idmap 페이지 테이블에서 swapper 페이지 테이블 끝까지 cache를 날린다.
 	 **/
 	mov	x0, x25
 	add	x1, x26, #SWAPPER_DIR_SIZE
@@ -403,16 +416,27 @@ __create_page_tables:
 	b.lo	1b
 
 	/** 20161113
-	 * mmu flag 값
+	 * mmu flag 값을 x7에 저장.
+	 * 이 값은 섹션 매핑을 사용하는지 여부에 따라 다르다.
 	 **/
 	ldr	x7, =SWAPPER_MM_MMUFLAGS
 
 	/*
 	 * Create the identity mapping.
 	 */
+	/** 20161113
+	 * x0 = x25 : idmap_pg_dir
+	 * x3 : __pa(__idmap_text_start)
+	 **/
 	mov	x0, x25				// idmap_pg_dir
 	adrp	x3, __idmap_text_start		// __pa(__idmap_text_start)
 
+	/** 20161113
+	 * PAGE_SHIFT : 12 (4KB), VA_BITS : 39, PGTABLE_LEVEL : 3인 경우
+	 *
+	 * EXTRA_SHIFT : 30 + 12 - 3 = 39
+	 * EXTRA_PTRS  : 1 << (48 - 39) = 512
+	 **/
 #ifndef CONFIG_ARM64_VA_BITS_48
 #define EXTRA_SHIFT	(PGDIR_SHIFT + PAGE_SHIFT - 3)
 #define EXTRA_PTRS	(1 << (48 - EXTRA_SHIFT))
@@ -431,6 +455,22 @@ __create_page_tables:
 #if VA_BITS != EXTRA_SHIFT
 #error "Mismatch between VA_BITS and page size/number of translation levels"
 #endif
+	/** 20161113
+	 * For each VA subrange, the input address size is 2**(64-TnSZ), where TnSZ is one of TCR_EL1.{T0SZ, T1SZ},
+	 * This means the two VA subranges are:
+	 *	Lower VA subrange 0x0000_0000_0000_0000 to (2**(64-T0SZ) - 1).
+	 *	Upper VA subrange (2**64 - 2**(64-T1SZ)) to 0xFFFF_FFFF_FFFF_FFFF.
+	 * The minimum TnSZ value is 16, corresponding to the maximum input address range of 48 bits.
+	 * Example D4-4 shows the two VA subranges when T0SZ and T1SZ are both set to this minimum value.
+	 *
+	 * The maximum VA subranges correspond to T0SZ and T1SZ each having the minimum value of 16.
+	 * In this case the subranges are:
+	 *	Lower VA subrange 0x0000_0000_0000_0000 to 0x0000_FFFF_FFFF_FFFF.
+	 *	Upper VA subrange 0xFFFF_0000_0000_0000 to 0xFFFF_FFFF_FFFF_FFFF.
+	 *
+	 * - TCR_EL1.T0SZ specifies the size for the lower VA range, translated using TTBR0_EL1.
+	 * - TCR_EL1.T1SZ specifies the size for the upper VA range, translated using TTBR1_EL1.
+	 **/
 
 	/*
 	 * Calculate the maximum allowed value for TCR_EL1.T0SZ so that the
@@ -439,8 +479,7 @@ __create_page_tables:
 	 * the physical address of __idmap_text_end.
 	 */
 	/** 20161113
-	 * - TCR_EL1.T0SZ specifies the size for the lower VA range, translated using TTBR0_EL1.
-	 * - TCR_EL1.T1SZ specifies the size for the upper VA range, translated using TTBR1_EL1.
+	 * pa(__idmap_text_end)에서 0으로 시작하는 비트를 추출해와 
 	 **/
 	adrp	x5, __idmap_text_end
 	clz	x5, x5
@@ -467,6 +506,9 @@ __create_page_tables:
 	/*
 	 * Map the kernel image (starting with PHYS_OFFSET).
 	 */
+	/** 20161113
+	 * kernel image 매핑
+	 **/
 	mov	x0, x26				// swapper_pg_dir
 	ldr	x5, =KIMAGE_VADDR
 	add	x5, x5, x23			// add KASLR displacement
