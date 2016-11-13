@@ -367,6 +367,11 @@ ENDPROC(preserve_boot_args)
  *     been enabled
  */
 __create_page_tables:
+	/** 20161113
+	 * vmlinux.lds.S에 정의된 심볼로,
+	 * 빌드시 페이지 단위로 정렬된 주소에 idmap_pg_dir과 swapper_pg_dir 공간을 확보하고 
+	 * 런타임에 해당 영역의 위치를 받아온다.
+	 **/
 	adrp	x25, idmap_pg_dir
 	adrp	x26, swapper_pg_dir
 	mov	x28, lr
@@ -375,6 +380,9 @@ __create_page_tables:
 	 * Invalidate the idmap and swapper page tables to avoid potential
 	 * dirty cache lines being evicted.
 	 */
+	/** 20161113
+	 * idmap과 swapper 페이지 테이블 영역에 대해 cache를 날린다.
+	 **/
 	mov	x0, x25
 	add	x1, x26, #SWAPPER_DIR_SIZE
 	bl	__inval_cache_range
@@ -382,6 +390,9 @@ __create_page_tables:
 	/*
 	 * Clear the idmap and swapper page tables.
 	 */
+	/** 20161113
+	 * idmap과swapper 페이지 테이블 영역을 0으로 채운다.
+	 **/
 	mov	x0, x25
 	add	x6, x26, #SWAPPER_DIR_SIZE
 1:	stp	xzr, xzr, [x0], #16
@@ -391,6 +402,9 @@ __create_page_tables:
 	cmp	x0, x6
 	b.lo	1b
 
+	/** 20161113
+	 * mmu flag 값
+	 **/
 	ldr	x7, =SWAPPER_MM_MMUFLAGS
 
 	/*
@@ -424,11 +438,18 @@ __create_page_tables:
 	 * this number conveniently equals the number of leading zeroes in
 	 * the physical address of __idmap_text_end.
 	 */
+	/** 20161113
+	 * - TCR_EL1.T0SZ specifies the size for the lower VA range, translated using TTBR0_EL1.
+	 * - TCR_EL1.T1SZ specifies the size for the upper VA range, translated using TTBR1_EL1.
+	 **/
 	adrp	x5, __idmap_text_end
 	clz	x5, x5
 	cmp	x5, TCR_T0SZ(VA_BITS)	// default T0SZ small enough?
 	b.ge	1f			// .. then skip additional level
 
+	/** 20161113
+	 * idmap_t0sz 에 저장
+	 **/
 	adr_l	x6, idmap_t0sz
 	str	x5, [x6]
 	dmb	sy

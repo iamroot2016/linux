@@ -44,8 +44,16 @@
 
 #include "mm.h"
 
+/** 20160828
+ * idmap을 위한 tcr.t0sz
+ *
+ * VA가 48bits일 경우 16.
+ **/
 u64 idmap_t0sz = TCR_T0SZ(VA_BITS);
 
+/** 20160831
+ * kernel virtual과 physical mapping 사이의 offset을 저장.
+ **/
 u64 kimage_voffset __read_mostly;
 EXPORT_SYMBOL(kimage_voffset);
 

@@ -32,6 +32,9 @@
  *
  * which gets simplified as :
  */
+/** 20161113
+ * ex) (48 - 4) / (12 - 3) = 4
+ **/
 #define ARM64_HW_PGTABLE_LEVELS(va_bits) (((va_bits) - 4) / (PAGE_SHIFT - 3))
 
 /*
@@ -196,6 +199,9 @@
 /*
  * Highest possible physical address supported.
  */
+/** 20161113
+ * 아키텍쳐에서 현재 사용하는 물리주소는 48bit까지이다.
+ **/
 #define PHYS_MASK_SHIFT		(48)
 #define PHYS_MASK		((UL(1) << PHYS_MASK_SHIFT) - 1)
 

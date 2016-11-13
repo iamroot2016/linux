@@ -26,6 +26,12 @@
  * with 4K (section size = 2M) but not with 16K (section size = 32M) or
  * 64K (section size = 512M).
  */
+/** 20161113
+ * linear mapping과 메모리의 시작은 2MB 정렬되어야 한다(arm64 booting.txt 요구사항).
+ * 따라서 4KB page table을 사용하는 경우에는 section mapping을 할 수 있고, 16KB와 64KB는 섹션 매핑을 할 수 없다.
+ *
+ * 따라서 4KB 페이지를 사용하면 swapper 페이지 테이블에서 섹션단위 매핑을 사용한다.
+ **/
 #ifdef CONFIG_ARM64_4K_PAGES
 #define ARM64_SWAPPER_USES_SECTION_MAPS 1
 #else
@@ -42,6 +48,15 @@
  * VA range, so pages required to map highest possible PA are reserved in all
  * cases.
  */
+/** 20161113
+ * idmap과 swapper 페이지 테이블은 커널 이미지에서 예약된 공간이 필요하다.
+ * pgd, pud(4level인 경우), pmd 테이블은 커널에 (section) 매핑된다.
+ *
+ * 섹션 매핑을 사용하므로 PGTABLE LEVEL에서 하나씩 빼준다.
+ * (va 39bit, 4KB page인 경우 pgtable level은 3이다)
+ *   SWAPPER_PGTABLE_LEVELS     3-1=2
+ *   IDMAP_PGTABLE_LEVELS	4-1=3
+ **/
 #if ARM64_SWAPPER_USES_SECTION_MAPS
 #define SWAPPER_PGTABLE_LEVELS	(CONFIG_PGTABLE_LEVELS - 1)
 #define IDMAP_PGTABLE_LEVELS	(ARM64_HW_PGTABLE_LEVELS(PHYS_MASK_SHIFT) - 1)
@@ -73,6 +88,9 @@
 #define SWAPPER_PTE_FLAGS	(PTE_TYPE_PAGE | PTE_AF | PTE_SHARED)
 #define SWAPPER_PMD_FLAGS	(PMD_TYPE_SECT | PMD_SECT_AF | PMD_SECT_S)
 
+/** 20161113
+ * section mapping 여부에 따라 MMU flag가 달라진다.
+ **/
 #if ARM64_SWAPPER_USES_SECTION_MAPS
 #define SWAPPER_MM_MMUFLAGS	(PMD_ATTRINDX(MT_NORMAL) | SWAPPER_PMD_FLAGS)
 #else
