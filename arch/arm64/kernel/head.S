@@ -47,7 +47,19 @@
  *
  * _text는 vmlinux.lds.S를 보면 KIMAGE_VADDR + TEXT_OFFSET이다.
  *
- * TEXT_OFFSET은 arch/arm64/Makefile에서
+ * KERNEL_START는 _text로 define.
+ * (이후 패치에서 arch/arm64/include/asm/memory.h 로 이동)
+ * 즉, kernel의 virtual address.
+ * _text의 배치는 arch/arm64/kernel/vmlinux.lds.S 에서 이뤄진다.
+ *	. = KIMAGE_VADDR + TEXT_OFFSET;
+ *
+ *	.head.text : {
+ *		 _text = .;
+ *		HEAD_TEXT
+ *	}
+ *
+ * TEXT_OFFSET은 kernel text segment의 offset을 의미한다.
+ * arch/arm64/Makefile에 정의.
  *  CONFIG_ARM64_RANDOMIZE_TEXT_OFFSET면 random offset.
  *  그렇지 않으면 0x80000
  **/
