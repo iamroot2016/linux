@@ -327,6 +327,13 @@ ENDPROC(preserve_boot_args)
  * Corrupts:	tmp1, tmp2
  * Returns:	tbl -> next level table page address
  */
+	/** 20161114
+	 * 주어진 virt 주소를 변환하는 테이블 엔트리에 하위 테이블을 생성해 저장한다.
+	 * 1,2 virtual 주소를 shift 시켜 테이블의 인덱스를 뽑아낸다.
+	 * 3,4 tbl 다음 페이지의 주소에 PMD 테이블 속성을 추가해 엔트리 값을 만들고
+	 * 5   테이블의 인덱스 번째에 생성한 엔트리 값을 저장한다.
+	 * 6   다음 레벨의 페이지 테이블을 가리킨다.
+	 **/
 	.macro	create_table_entry, tbl, virt, shift, ptrs, tmp1, tmp2
 	lsr	\tmp1, \virt, #\shift
 	and	\tmp1, \tmp1, #\ptrs - 1	// table index
@@ -343,6 +350,13 @@ ENDPROC(preserve_boot_args)
  * Preserves:	tbl, next, virt
  * Corrupts:	tmp1, tmp2
  */
+	/** 20161114
+	 * pgd -> pud -> pte 순으로 주어진 virt 주소에 대한 table entry를 생성한다.
+	 *
+	 * va 39bit, 3단계 페이지 테이블을 사용하고 4kb 페이지인 경우 섹션 매핑이 되어
+	 * SWAPPER_PGTABLE_LEVELS는 2.
+	 * 즉 pgd entry만 설정된다.
+	 **/
 	.macro	create_pgd_entry, tbl, virt, tmp1, tmp2
 	create_table_entry \tbl, \virt, PGDIR_SHIFT, PTRS_PER_PGD, \tmp1, \tmp2
 #if SWAPPER_PGTABLE_LEVELS > 3
@@ -361,7 +375,7 @@ ENDPROC(preserve_boot_args)
  * Corrupts:	phys, start, end, pstate
  */
 	/** 20161113
-	 * page table 블럭 매핑 매크로
+	 * start ~ end 영역을 page table에 매핑한다.
 	 **/
 	.macro	create_block_map, tbl, flags, phys, start, end
 	lsr	\phys, \phys, #SWAPPER_BLOCK_SHIFT
@@ -387,7 +401,7 @@ ENDPROC(preserve_boot_args)
 /** 20161113
  * 초기 페이지 테이블을 설정한다. 오직 커널이 당장 수행하는데 필요한 영역만 설정한다.
  *   - identity mapping은 MMU enable 하기 위해 설정한다. va와 pa가 1:1 매핑된다.
- *   - MMU가 enabled 되고 난 뒤 kernel 이미지 영역을 선형 매핑한다.
+ *   - MMU가 enabled 되고 난 뒤 사용할 kernel 이미지 영역을 선형 매핑한다.
  **/
 __create_page_tables:
 	/** 20161113
@@ -491,7 +505,9 @@ __create_page_tables:
 	 * the physical address of __idmap_text_end.
 	 */
 	/** 20161113
-	 * pa(__idmap_text_end)에서 0으로 시작하는 비트를 추출해와 
+	 * TCR_EL1.T0SZ에서 사용가능한 최대 크기를 얻어와 이것으로
+	 * idmap 영역을 매핑할 수 있는지 판단한다.
+	 * 
 	 **/
 	adrp	x5, __idmap_text_end
 	clz	x5, x5
@@ -499,17 +515,27 @@ __create_page_tables:
 	b.ge	1f			// .. then skip additional level
 
 	/** 20161113
-	 * idmap_t0sz 에 저장
+	 * idmap을 매핑하기 위해 필요한 t0sz 값을 idmap_t0sz에 저장한다.
 	 **/
 	adr_l	x6, idmap_t0sz
 	str	x5, [x6]
 	dmb	sy
 	dc	ivac, x6		// Invalidate potentially stale cache line
 
+	/** 20161114
+	 * 한 단계의 table을 추가로 생성한다.
+	 * x0 = x25 : idmap_pg_dir
+	 * x3 : __pa(__idmap_text_start)
+	 **/
 	create_table_entry x0, x3, EXTRA_SHIFT, EXTRA_PTRS, x5, x6
 1:
 #endif
 
+	/** 20161114
+	 * x0 : idmap_pg_dir에 __idmap_text_start ~ __idmap_text_end 영역을 매핑한다.
+	 * x3 : __pa(__idmap_text_start)를 변환하는 pgd entry를 생성한다.
+	 * x7 : flags. SWAPPER_MM_MMUFLAGS 섹션 매핑에 따라 달라진다.
+	 **/
 	create_pgd_entry x0, x3, x5, x6
 	mov	x5, x3				// __pa(__idmap_text_start)
 	adr_l	x6, __idmap_text_end		// __pa(__idmap_text_end)
@@ -519,7 +545,7 @@ __create_page_tables:
 	 * Map the kernel image (starting with PHYS_OFFSET).
 	 */
 	/** 20161113
-	 * kernel image 매핑
+	 * swapper_pg_dir에 pa(__PHYS_OFFSET)를 KIMAGE_VADDR (va)을  매핑
 	 **/
 	mov	x0, x26				// swapper_pg_dir
 	ldr	x5, =KIMAGE_VADDR
@@ -535,11 +561,19 @@ __create_page_tables:
 	 * accesses (MMU disabled), invalidate the idmap and swapper page
 	 * tables again to remove any speculatively loaded cache lines.
 	 */
+	/** 20161114
+	 * MMU disabled 이므로 non-cacheable 접근이다.
+	 * 투기적 실행으로 올라왔을지도 모르기 때문에 (???)
+	 * idmap_pg_dir와 swapper_pg_dir 영역에 대한 cache를 무효화 한다.
+	 **/
 	mov	x0, x25
 	add	x1, x26, #SWAPPER_DIR_SIZE
 	dmb	sy
 	bl	__inval_cache_range
 
+	/** 20161114
+	 * 위에서 백업해둔 복귀 주소로 돌아간다.
+	 **/
 	ret	x28
 ENDPROC(__create_page_tables)
 
