@@ -56,6 +56,14 @@
 /*
  * tcr_set_idmap_t0sz - update TCR.T0SZ so that we can load the ID map
  */
+	/** 20161115
+	 * BFI{cond} Rd, Rn, #lsb, #width
+	 *   Rd에서 lsb부터 시작하는 width 비트는
+	 *   Rn에서 비트[0]부터 시작하는 width 비트로 대체됩니다.
+	 *
+	 * VA_BITS가 48이 아니면 t0sz를 앞서 계산해둔 값으로 대체한다.
+	 * idmap을 로드하기 위함이다.
+	 **/
 	.macro	tcr_set_idmap_t0sz, valreg, tmpreg
 #ifndef CONFIG_ARM64_VA_BITS_48
 	ldr_l	\tmpreg, idmap_t0sz

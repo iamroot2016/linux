@@ -249,15 +249,9 @@ ENTRY(stext)
 	bl	el2_setup			// Drop to EL1, w20=cpu_boot_mode
 	mov	x23, xzr			// KASLR offset, defaults to 0
 	/** 20160815
-	 * MMU가 켜지기 전 __PHYS_OFFSET은 커널 영역의 시작 주소(물리)
+	 * MMU가 켜지기 전, adrp로 __PHYS_OFFSET의 물리주소를 x24에 저장.
 	 *
 	 * adrp : pc-relative address로 받아옴
-	 *
-	 * __PHYS_OFFSET은 random값으로 설정될 수 있음.
-	 * KASLR align을 x23에 저장.
-	 * KASLR : Kernel address space layout randomization
-	 * https://lwn.net/Articles/569635/
-	 * http://selinuxproject.org/~jmorris/lss2013_slides/cook_kaslr.pdf
 	 **/
 	adrp	x24, __PHYS_OFFSET
 	bl	set_cpu_boot_mode_flag
@@ -268,6 +262,12 @@ ENTRY(stext)
 	 * On return, the CPU will be ready for the MMU to be turned on and
 	 * the TCR will have been set.
 	 */
+	/** 20161115
+	 * MMU를 켠 다음 실행시킬 코드 위치를 x27에 저장.
+	 * lr에 __enable_mmu를 저장해 __cpu_setup에서 return시 실행된다.
+	 *
+	 * offset을 구한 뒤 KIMAGE_VADDR에 더해 온전한 va를 만든다.
+	 **/
 	ldr	x27, 0f				// address to jump to after
 						// MMU has been enabled
 	adr_l	lr, __enable_mmu		// return (PIC) address
@@ -584,19 +584,33 @@ kernel_img_size:
 /*
  * The following fragment of code is executed with the MMU enabled.
  */
+	/** 20161115
+	 * 변수 initial_sp를 init_thread의 스택 시작지점으로 설정
+	 *
+	 * __mmap_switched부터 MMU enable된 후 실행
+	 **/
 	.set	initial_sp, init_thread_union + THREAD_START_SP
 __mmap_switched:
 	mov	x28, lr				// preserve LR
+	/** 20161115
+	 * Vector Base Address Register (EL1) 에 entry.S의 vectors(va) 위치 저장
+	 **/
 	adr_l	x8, vectors			// load VBAR_EL1 with virtual
 	msr	vbar_el1, x8			// vector table address
 	isb
 
 	// Clear BSS
+	/** 20161115
+	 * bss 영역을 0으로 초기화. (__pi_memset = memset)
+	 **/
 	adr_l	x0, __bss_start
 	mov	x1, xzr
 	adr_l	x2, __bss_stop
 	sub	x2, x2, x0
 	bl	__pi_memset
+	/** 20161115
+	 * ishst : Inner Shareable Store
+	 **/
 	dsb	ishst				// Make zero page visible to PTW
 
 #ifdef CONFIG_RELOCATABLE
@@ -1048,6 +1062,9 @@ ENDPROC(__secondary_switched)
  *    it is committed to memory.
  */
 
+	/** 20161115
+	 * MMU가 꺼진 상태. __early_cpu_boot_status에 status를 기록한다.
+	 **/
 	.macro	update_early_cpu_boot_status status, tmp1, tmp2
 	mov	\tmp2, #\status
 	adr_l	\tmp1, __early_cpu_boot_status
@@ -1075,11 +1092,22 @@ ENTRY(__early_cpu_boot_status)
  */
 	.section	".idmap.text", "ax"
 __enable_mmu:
+	/** 20161115
+	 * Memory Model Feature Register에서 읽어온 TGran 필드를 보고
+	 * 커널에서 설정한 PAGE 크기가 지원 가능한지 검사한다.
+	 **/
 	mrs	x22, sctlr_el1			// preserve old SCTLR_EL1 value
 	mrs	x1, ID_AA64MMFR0_EL1
 	ubfx	x2, x1, #ID_AA64MMFR0_TGRAN_SHIFT, 4
 	cmp	x2, #ID_AA64MMFR0_TGRAN_SUPPORTED
 	b.ne	__no_granule_support
+	/** 20161115
+	 * status에 0을 저장한다.
+	 * ttbr0과 ttbr1 레지스터에 값을 넣는다.
+	 *   ttbr0_el1 : idmap_pg_dir
+	 *   ttbr1_el1 : swapper_pg_dir
+	 * sctlr_el1 레지스터에 준비한 값을 넣는다. mmu on.
+	 **/
 	update_early_cpu_boot_status 0, x1, x2
 	msr	ttbr0_el1, x25			// load TTBR0
 	msr	ttbr1_el1, x26			// load TTBR1
@@ -1091,6 +1119,10 @@ __enable_mmu:
 	 * speculatively from the PoC are discarded, since they may have
 	 * been dynamically patched at the PoU.
 	 */
+	/** 20161115
+	 * (local) instruction cache invalidate all by PoU
+	 * PoC에 의해 투기적 fetch 되었을 수도 있는 명령 캐시를 무효화한다.
+	 **/
 	ic	iallu
 	dsb	nsh
 	isb
@@ -1114,6 +1146,9 @@ __enable_mmu:
 	isb
 	add	x27, x27, x23			// relocated __mmap_switched
 #endif
+	/** 20161115
+	 * 호출시 x27에 저장된 va로 뛴다 (커널 부팅시 __mmap_switched)
+	 **/
 	br	x27
 ENDPROC(__enable_mmu)
 

@@ -29,6 +29,9 @@
 #define THREAD_SIZE_ORDER	0
 #endif
 
+/** 20161115
+ * thread_union(stack과 thread_info)의 크기는 16KB
+ **/
 #define THREAD_SIZE		16384
 #define THREAD_START_SP		(THREAD_SIZE - 16)
 

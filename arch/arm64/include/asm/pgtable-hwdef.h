@@ -225,6 +225,11 @@
  */
 /** 20161113
  * TCR_T0SZ(39)	= ((UL(64) - (39)) << TCR_T0SZ_OFFSET) = 25 << 0 = 25
+ * TCR_T1SZ(39) = ((UL(64) - (39)) << TCR_T1SZ_OFFSET) = 25 << 16
+ *
+ * ASID16 : ASID size. 0: 8bit, 1: 16bit
+ * TBI : Top Byte ignored
+ * TG  : TTBR Granule size.
  **/
 #define TCR_T0SZ_OFFSET		0
 #define TCR_T1SZ_OFFSET		16
