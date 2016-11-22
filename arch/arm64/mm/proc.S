@@ -193,14 +193,15 @@ ENDPROC(idmap_cpu_replace_ttbr1)
 ENTRY(__cpu_setup)
 	/** 20161115
 	 * TLB Invalidate by VMID, All at stage 1, EL1
+	 * Invalidate all EL1&0 regime stage 1 TLB entries for the current VMID.
 	 * EL1에서 사용한 local TLB를 무효화. non-shareable로 동기화
 	 **/
 	tlbi	vmalle1				// Invalidate local TLB
 	dsb	nsh
 
 	/** 20161115
-	 * cpacr : Architectural Feature Access Control Register
-	 * FPEN 비트를 설정해 FP/SIMD 명령이 trap을 발생시키지 않게 한다.
+	 * CPACR_EL1, Architectural Feature Access Control Register
+	 * FPEN 비트를 설정해 FP/SIMD 명령이 EL1으로 트랩되지 않고 허용되도록 설정.
 	 *
 	 * mdscr_el1 : Monitor Debug System Control Register
 	 * TDCC 비트를 설정해 EL0에서 DBG 레지스터 접근하면 EL1으로 trap 시킨다.
@@ -210,6 +211,11 @@ ENTRY(__cpu_setup)
 	mov	x0, #3 << 20
 	msr	cpacr_el1, x0			// Enable FP/ASIMD
 	mov	x0, #1 << 12			// Reset mdscr_el1 and disable
+	/** 20161122
+	 * MDSCR_EL1, Monitor Debug System Control Register
+	 *    Traps EL0 accesses to the DCC registers to EL1, from both Execution states:
+	 *    EL1로 트랩되도록 설정하는 것은 disable.
+	 **/
 	msr	mdscr_el1, x0			// access to the DCC from EL0
 	reset_pmuserenr_el0 x0			// Disable PMU access from EL0
 	/*

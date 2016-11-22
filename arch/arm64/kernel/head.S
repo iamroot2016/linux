@@ -1104,7 +1104,7 @@ __enable_mmu:
 	/** 20161115
 	 * status에 0을 저장한다.
 	 * ttbr0과 ttbr1 레지스터에 값을 넣는다.
-	 *   ttbr0_el1 : idmap_pg_dir
+	 *   ttbr0_el1 : idmap_pg_dir ... context switch시마다(cpu_do_switch_mm에서) ttbr0_el1이 변경된다.
 	 *   ttbr1_el1 : swapper_pg_dir
 	 * sctlr_el1 레지스터에 준비한 값을 넣는다. mmu on.
 	 **/
