@@ -63,6 +63,9 @@
  *		only require the D-TLB to be invalidated.
  *		- kaddr - Kernel virtual memory address
  */
+/** 20161126
+ * local tlb를 invalidate.
+ **/
 static inline void local_flush_tlb_all(void)
 {
 	dsb(nshst);

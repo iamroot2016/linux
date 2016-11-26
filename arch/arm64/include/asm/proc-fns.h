@@ -35,6 +35,9 @@ extern u64 cpu_do_resume(phys_addr_t ptr, u64 idmap_ttbr);
 
 #include <asm/memory.h>
 
+/** 20161126
+ * pgd에 ASID를 더해 ttbr0_el1에 덮어쓴다.
+ **/
 #define cpu_switch_mm(pgd,mm)				\
 do {							\
 	BUG_ON(pgd == swapper_pg_dir);			\

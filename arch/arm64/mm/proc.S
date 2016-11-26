@@ -138,6 +138,12 @@ ENDPROC(cpu_do_resume)
  *
  *	- pgd_phys - physical address of new TTB
  */
+/** 20161126
+ * pgd 물리주소의 상위 16비트를 mm->context.id (ASID)로 덮어쓴다.
+ *
+ * bfi: bitfield insert
+ *   x1의 lsb부터 width(16)만큼 추출해 x0의 48비트부터 덮어쓴다.
+ **/
 ENTRY(cpu_do_switch_mm)
 	mmid	x1, x1				// get mm->context.id
 	bfi	x0, x1, #48, #16		// set the ASID
@@ -163,6 +169,9 @@ ENDPROC(cpu_do_switch_mm)
  * This is the low-level counterpart to cpu_replace_ttbr1, and should not be
  * called by anything else. It can only be executed from a TTBR0 mapping.
  */
+/** 20161126
+ * ttbr1_el1을 new_pgd로 채운다.
+ **/
 ENTRY(idmap_cpu_replace_ttbr1)
 	mrs	x2, daif
 	msr	daifset, #0xf

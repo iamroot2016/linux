@@ -45,7 +45,8 @@
 #include "mm.h"
 
 /** 20160828
- * idmap을 위한 tcr.t0sz
+ * idmap을 위한 tcr.t0sz.
+ * TTBR0_EL1은 (64-T0SZ) 영역만큼 사용한다.
  *
  * VA가 48bits일 경우 16.
  * VA가 39bits일 경우 25.
@@ -62,6 +63,9 @@ EXPORT_SYMBOL(kimage_voffset);
  * Empty_zero_page is a special page that is used for zero-initialized data
  * and COW.
  */
+/** 20161126
+ * 0으로 채워질 한 페이지 크기의 empty_zero_page를 bss 영역에 배치
+ **/
 unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)] __page_aligned_bss;
 EXPORT_SYMBOL(empty_zero_page);
 
@@ -560,6 +564,16 @@ void __init paging_init(void)
 	 *
 	 * To do this we need to go via a temporary pgd.
 	 */
+	/** 20161126
+	 * 원래의 swapper_pg_dir를 재사용하기 원하기 때문에, 
+	 * secondary_entry의 non-coherent secondary에게 새로운 주소로 통신할
+	 * 필요가 없다. 그래서 cpu_switch_mm은 adrp와 add로 주소를 생성할 수
+	 * 있어 전역 변수로부터 읽어올 필요는 없다.
+	 *
+	 * 1. ttbr1을 pgd로 설정
+	 * 2. pgd를 swapper_pg_dir로 복사.
+	 * 3. ttbr1을 swapper_pg_dir로 설정
+	 **/
 	cpu_replace_ttbr1(__va(pgd_phys));
 	memcpy(swapper_pg_dir, pgd, PAGE_SIZE);
 	cpu_replace_ttbr1(swapper_pg_dir);

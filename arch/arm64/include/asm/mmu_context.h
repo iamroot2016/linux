@@ -47,6 +47,10 @@ static inline void contextidr_thread_switch(struct task_struct *next)
 /*
  * Set TTBR0 to empty_zero_page. No translations will be possible via TTBR0.
  */
+/** 20161126
+ * ttbr0_el1를 empty_zero_page로 기록해 ttbr0의 내용으로 translation 되지
+ * 못하게 막는다.
+ **/
 static inline void cpu_set_reserved_ttbr0(void)
 {
 	unsigned long ttbr = virt_to_phys(empty_zero_page);
@@ -63,6 +67,11 @@ static inline void cpu_set_reserved_ttbr0(void)
  * TCR_T0SZ(VA_BITS), unless system RAM is positioned very high in
  * physical memory, in which case it will be smaller.
  */
+/** 20161126
+ * ID map이 활성화 될 때 TCR.T0SZ이 사용된다.
+ * system RAM이 물리 메모리의 높은 곳에 있는 등
+ * TCR_T0SZ(VA_BITS)와 같지 않으면 별도의 idmap을 사용한다.
+ **/
 extern u64 idmap_t0sz;
 
 static inline bool __cpu_uses_extended_idmap(void)
@@ -74,6 +83,11 @@ static inline bool __cpu_uses_extended_idmap(void)
 /*
  * Set TCR.T0SZ to its default value (based on VA_BITS)
  */
+/** 20161126
+ * TCR에 t0sz 부분을 채워넣는다.
+ *
+ * bfi: bit-field insert
+ **/
 static inline void __cpu_set_tcr_t0sz(unsigned long t0sz)
 {
 	unsigned long tcr;
@@ -90,7 +104,13 @@ static inline void __cpu_set_tcr_t0sz(unsigned long t0sz)
 	: "r"(t0sz), "I"(TCR_T0SZ_OFFSET), "I"(TCR_TxSZ_WIDTH));
 }
 
+/** 20161126
+ * tcr의 t0sz를 VA_BITS에 대한 값(64-VA_BITS)으로 설정한다.
+ **/
 #define cpu_set_default_tcr_t0sz()	__cpu_set_tcr_t0sz(TCR_T0SZ(VA_BITS))
+/** 20161126
+ * idmap의 t0sz 값을 tcr에 저장한다.
+ **/
 #define cpu_set_idmap_tcr_t0sz()	__cpu_set_tcr_t0sz(idmap_t0sz)
 
 /*
@@ -105,10 +125,17 @@ static inline void __cpu_set_tcr_t0sz(unsigned long t0sz)
  * which should not be installed in TTBR0_EL1. In this case we can leave the
  * reserved page tables in place.
  */
+/** 20161126
+ * idmap가 매핑되어 있는 설정 레지스터를 비우고,
+ * 현재 mm이 init_mm이 아닐 경우 active mm으로 변경한다.
+ **/
 static inline void cpu_uninstall_idmap(void)
 {
 	struct mm_struct *mm = current->active_mm;
 
+	/** 20161126
+	 * ttbr0_el1을 비우고, tcr의 t0sz를 default로 설정한다.
+	 **/
 	cpu_set_reserved_ttbr0();
 	local_flush_tlb_all();
 	cpu_set_default_tcr_t0sz();
@@ -117,12 +144,23 @@ static inline void cpu_uninstall_idmap(void)
 		cpu_switch_mm(mm->pgd, mm);
 }
 
+/** 20161126
+ * idmap의 t0sz를 tcr에 저장하고, ttbr0_el1에 ASID를 더해 설치한다.
+ **/
 static inline void cpu_install_idmap(void)
 {
+	/** 20161126
+	 * ttbr0_el1을 zero로 채워두고, tlb를 비운다.
+	 * idmap의 t0sz 값을 tcr에 저장한다.
+	 **/
 	cpu_set_reserved_ttbr0();
 	local_flush_tlb_all();
 	cpu_set_idmap_tcr_t0sz();
 
+	/** 20161126
+	 * idmap_pg_dir 주소에 init_mm의 context id 합쳐 ttbr0_el1에
+	 * 기록한다.
+	 **/
 	cpu_switch_mm(idmap_pg_dir, &init_mm);
 }
 
@@ -130,6 +168,10 @@ static inline void cpu_install_idmap(void)
  * Atomically replaces the active TTBR1_EL1 PGD with a new VA-compatible PGD,
  * avoiding the possibility of conflicting TLB entries being allocated.
  */
+/** 20161126
+ * 동작 중인 TTBR1_EL1을 새로운 pgd로 대체한다.
+ * allocate되어 있는 TLB entries의 충돌을 회피한다.
+ **/
 static inline void cpu_replace_ttbr1(pgd_t *pgd)
 {
 	typedef void (ttbr_replace_func)(phys_addr_t);
@@ -140,6 +182,13 @@ static inline void cpu_replace_ttbr1(pgd_t *pgd)
 
 	replace_phys = (void *)virt_to_phys(idmap_cpu_replace_ttbr1);
 
+	/** 20161126
+	 * idmap을 ttbr0_el1에 설치한 상태에서
+	 * ttbr_replace_func 콜백함수로 ttbr1을 pgd로 변경하고,
+	 * 다시 ttbr0_el1을 제거한다.
+	 *
+	 * ttbr_replace_func은 idmap 영역으로 매핑되어 있다.
+	 **/
 	cpu_install_idmap();
 	replace_phys(pgd_phys);
 	cpu_uninstall_idmap();
