@@ -29,6 +29,7 @@
 #define CONT_SHIFT		7
 #else
 /** 20161113
+ * 4K 페이지를 사용하는 경우
  **/
 #define PAGE_SHIFT		12
 #define CONT_SHIFT		4

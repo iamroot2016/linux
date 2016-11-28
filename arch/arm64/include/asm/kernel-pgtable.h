@@ -28,7 +28,8 @@
  */
 /** 20161113
  * linear mapping과 메모리의 시작은 2MB 정렬되어야 한다(arm64 booting.txt 요구사항).
- * 따라서 4KB page table을 사용하는 경우에는 section mapping을 할 수 있고, 16KB와 64KB는 섹션 매핑을 할 수 없다.
+ * 따라서 4KB page table을 사용하는 경우에는 section mapping을 할 수 있고,
+ * 16KB와 64KB는 섹션 매핑을 할 수 없다.
  *
  * 따라서 4KB 페이지를 사용하면 swapper 페이지 테이블에서 섹션단위 매핑을 사용한다.
  **/
@@ -50,12 +51,15 @@
  */
 /** 20161113
  * idmap과 swapper 페이지 테이블은 커널 이미지에서 예약된 공간이 필요하다.
- * pgd, pud(4level인 경우), pmd 테이블은 커널에 (section) 매핑된다.
+ * 둘 모두 pgd, pud(4level인 경우), pmd 테이블이 필요하다.
+ * 64K page 설정인 경우, swapper와 idmap은 map 하기 위해 pte level도 필요하다.
  *
  * 섹션 매핑을 사용하므로 PGTABLE LEVEL에서 하나씩 빼준다.
  * (va 39bit, 4KB page인 경우 pgtable level은 3이다)
  *   SWAPPER_PGTABLE_LEVELS     3-1=2
  *   IDMAP_PGTABLE_LEVELS	4-1=3
+ *
+ * 사용하는 레벨만큼의 페이지들이 미리 필요하다.
  **/
 #if ARM64_SWAPPER_USES_SECTION_MAPS
 #define SWAPPER_PGTABLE_LEVELS	(CONFIG_PGTABLE_LEVELS - 1)

@@ -64,6 +64,9 @@
  */
 /** 20161113
  * 현재 config로 VA 39bit, PAGE_SHIFT 12bit, PGTABLE LEVELS 3
+ *   PMD_SHIFT : 21
+ *   PMD_SIZE  : 2MB
+ *   PTRS_PER_PMD : 512
  **/
 #if CONFIG_PGTABLE_LEVELS > 2
 #define PMD_SHIFT		ARM64_HW_PGTABLE_LEVEL_SHIFT(2)
@@ -141,6 +144,10 @@
 /*
  * Level 2 descriptor (PMD).
  */
+/** 20161124
+ * 비트0은 0이면 폴트. 유효한 값이면 1.
+ * 비트1은 0이면 블록 매핑, 1이면 PTE 테이블을 가리킴
+ **/
 #define PMD_TYPE_MASK		(_AT(pmdval_t, 3) << 0)
 #define PMD_TYPE_FAULT		(_AT(pmdval_t, 0) << 0)
 #define PMD_TYPE_TABLE		(_AT(pmdval_t, 3) << 0)

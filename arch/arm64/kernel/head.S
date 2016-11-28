@@ -355,7 +355,7 @@ ENDPROC(preserve_boot_args)
 	 *
 	 * va 39bit, 3단계 페이지 테이블을 사용하고 4kb 페이지인 경우 섹션 매핑이 되어
 	 * SWAPPER_PGTABLE_LEVELS는 2.
-	 * 즉 pgd entry만 설정된다.
+	 * 즉 pgd entry만 설정되고, 마지막 테이블 엔트리는 이후 매핑된다.
 	 **/
 	.macro	create_pgd_entry, tbl, virt, tmp1, tmp2
 	create_table_entry \tbl, \virt, PGDIR_SHIFT, PTRS_PER_PGD, \tmp1, \tmp2
@@ -375,7 +375,9 @@ ENDPROC(preserve_boot_args)
  * Corrupts:	phys, start, end, pstate
  */
 	/** 20161113
-	 * start ~ end 영역을 page table에 매핑한다.
+	 * tbl에 phys 주소를 VA:start~end 영역으로 매핑한다.
+	 *   SECTION 매핑 여부에 따라 블럭 매핑일 수도 있고 페이지 매핑일 수도 있다.
+	 *   가장 마지막 디스크립션 매핑임은 동일하다.
 	 **/
 	.macro	create_block_map, tbl, flags, phys, start, end
 	lsr	\phys, \phys, #SWAPPER_BLOCK_SHIFT
@@ -406,7 +408,7 @@ ENDPROC(preserve_boot_args)
 __create_page_tables:
 	/** 20161113
 	 * vmlinux.lds.S에 정의된 심볼로,
-	 * 빌드시 페이지 단위로 정렬된 주소에 idmap_pg_dir과 swapper_pg_dir 공간을 확보하고 
+	 * 빌드시 페이지 단위로 정렬된 주소에 idmap_pg_dir과 swapper_pg_dir 공간을 확보하고
 	 * 런타임에 해당 영역의 위치를 받아온다.
 	 *
 	 * x28에 복귀주소를 저장한다.
@@ -430,7 +432,7 @@ __create_page_tables:
 	 * Clear the idmap and swapper page tables.
 	 */
 	/** 20161113
-	 * idmap과swapper 페이지 테이블 영역을 0으로 채운다.
+	 * idmap과 swapper 페이지 테이블 영역을 0으로 채운다.
 	 **/
 	mov	x0, x25
 	add	x6, x26, #SWAPPER_DIR_SIZE
@@ -507,7 +509,6 @@ __create_page_tables:
 	/** 20161113
 	 * TCR_EL1.T0SZ에서 사용가능한 최대 크기를 얻어와 이것으로
 	 * idmap 영역을 매핑할 수 있는지 판단한다.
-	 * 
 	 **/
 	adrp	x5, __idmap_text_end
 	clz	x5, x5
@@ -532,9 +533,10 @@ __create_page_tables:
 #endif
 
 	/** 20161114
+	 * SWAPPER_PGTABLE_LEVEL에 따라 필요한만큼 테이블을 생성한다.
 	 * x0 : idmap_pg_dir에 __idmap_text_start ~ __idmap_text_end 영역을 매핑한다.
 	 * x3 : __pa(__idmap_text_start)를 변환하는 pgd entry를 생성한다.
-	 * x7 : flags. SWAPPER_MM_MMUFLAGS 섹션 매핑에 따라 달라진다.
+	 * x7 : flags. SWAPPER_MM_MMUFLAGS 섹션 매핑 여부에 따라 달라진다.
 	 **/
 	create_pgd_entry x0, x3, x5, x6
 	mov	x5, x3				// __pa(__idmap_text_start)
@@ -545,7 +547,7 @@ __create_page_tables:
 	 * Map the kernel image (starting with PHYS_OFFSET).
 	 */
 	/** 20161113
-	 * swapper_pg_dir에 pa(__PHYS_OFFSET)를 KIMAGE_VADDR (va)을  매핑
+	 * swapper_pg_dir 위치에 pa(__PHYS_OFFSET)를 KIMAGE 크기만큼 매핑
 	 **/
 	mov	x0, x26				// swapper_pg_dir
 	ldr	x5, =KIMAGE_VADDR
@@ -577,6 +579,9 @@ __create_page_tables:
 	ret	x28
 ENDPROC(__create_page_tables)
 
+	/** 20161124
+	 * kernel TEXT_OFFSET을 포함한 커널 이미지 사이즈
+	 **/
 kernel_img_size:
 	.long	_end - (_head - TEXT_OFFSET)
 	.ltorg
