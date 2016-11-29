@@ -1,0 +1,112 @@
+################################################################################
+	BUILD COMMAND
+################################################################################
+
+make ARCH=arm64 defconfig
+make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j8 -sw
+make ARCH=arm64 tags cscope
+
+
+
+
+################################################################################
+	KERNEL MEMORY MAP
+################################################################################
+
+	1. VA에서 kernel address space가 주소 끝쪽으로 이동했다.
+	2. 1:1 mapping 할 충분한 공간이 있이므로 high memory mapping이 없어졌다.
+
+FILE: arch/arm64/include/asm/memory.h
+/*
+ * PAGE_OFFSET - the virtual address of the start of the linear map (top
+ *		 (VA_BITS - 1))
+ * KIMAGE_VADDR - the virtual address of the start of the kernel image
+ * VA_BITS - the maximum number of bits for virtual addresses.
+ * VA_START - the first kernel virtual address.
+ * TASK_SIZE - the maximum size of a user space task.
+ * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area.
+ */
+
+ KIMAGE_VADDR : the virtual base of the kernel region
+ TEXT_OFFSET  : RANDOMIZE가 아니면 0x80000
+
+ PAGE_OFFSET이 linear map 용도로 변경되었다. commit comment
+arm64: split linear and kernel mappings
+At the request of Catalin, this series has been split off from my series
+'arm64: implement support for KASLR v4' [1]. This sub-series deals with
+moving the kernel out of the linear mapping into the vmalloc area. This
+is a prerequisite for independent physical and virtual randomization of
+the kernel image. On top of that, considering that these changes allow
+the linear mapping to start at an arbitrary offset above PAGE_OFFSET, it
+should be an improvement in itself due to the fact that we can now choose
+PAGE_OFFSET such that RAM can be mapped using large block sizes.
+
+
+#define VA_BITS			(CONFIG_ARM64_VA_BITS)
+	v4.6에서 4KB 3level 39bit, v4.7+에서 4KB 3level 48bit
+#define VA_START		(UL(0xffffffffffffffff) << VA_BITS)
+	>>> hex(0xffffffffffffffff << 39 & 0xffffffffffffffff)
+	'0xffffff8000000000'
+#define PAGE_OFFSET		(UL(0xffffffffffffffff) << (VA_BITS - 1))
+	>>> hex((0xffffffffffffffff << (39-1)) & 0xffffffffffffffff)
+	'0xffffffc000000000'
+#define KIMAGE_VADDR		(MODULES_END)
+	0xffffff8008000000
+#define MODULES_END		(MODULES_VADDR + MODULES_VSIZE)
+	0xffffff8008000000 = 0xffffff8000000000 + 0x08000000
+#define MODULES_VADDR		(VA_START + KASAN_SHADOW_SIZE)
+	0xffffff8000000000
+	
+
+FILE: Documentation/arm64/memory.txt (v4.6)
+
+AArch64 Linux memory layout with 4KB pages + 3 levels:
+
+Start			End			Size		Use
+-----------------------------------------------------------------------
+0000000000000000	0000007fffffffff	 512GB		user
+ffffff8000000000	ffffffffffffffff	 512GB		kernel
+
+Translation table lookup with 4KB pages:
+
++--------+--------+--------+--------+--------+--------+--------+--------+
+|63    56|55    48|47    40|39    32|31    24|23    16|15     8|7      0|
++--------+--------+--------+--------+--------+--------+--------+--------+
+ |                 |         |         |         |         |
+ |                 |         |         |         |         v
+ |                 |         |         |         |   [11:0]  in-page offset
+ |                 |         |         |         +-> [20:12] L3 index
+ |                 |         |         +-----------> [29:21] L2 index
+ |                 |         +---------------------> [38:30] L1 index
+ |                 +-------------------------------> [47:39] L0 index
+ +-------------------------------------------------> [63] TTBR0/1
+
+
+FILE: Documentation/arm64/booting.txt
+
+Requirement: MANDATORY
+
+The decompressed kernel image contains a 64-byte header as follows:
+
+  u32 code0;			/* Executable code */
+  u32 code1;			/* Executable code */
+  u64 text_offset;		/* Image load offset, little endian */
+  u64 image_size;		/* Effective Image size, little endian */
+  u64 flags;			/* kernel flags, little endian */		// endianness, page size, physical placement
+  u64 res2	= 0;		/* reserved */
+  u64 res3	= 0;		/* reserved */
+  u64 res4	= 0;		/* reserved */
+  u32 magic	= 0x644d5241;	/* Magic number, little endian, "ARM\x64" */
+  u32 res5;			/* reserved (used for PE COFF offset) */
+
+
+
+
+FILE: System.map
+
+ffffff8008080000 A __efistub__text
+ffffff8008080000 t _head
+ffffff8008080000 T _text
+...
+ffffff8008c01000 A __efistub__end
+ffffff8008c01000 B _end
