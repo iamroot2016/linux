@@ -266,7 +266,8 @@ ENTRY(stext)
 	 * MMU를 켠 다음 실행시킬 코드 위치를 x27에 저장.
 	 * lr에 __enable_mmu를 저장해 __cpu_setup에서 return시 실행된다.
 	 *
-	 * offset을 구한 뒤 KIMAGE_VADDR에 더해 온전한 va를 만든다.
+	 * __mmap_switched  (PA) - (_head - TEXT_OFFSET)  (PA) + KIMAGE_VADDR (VA)
+	 * kernel 시작 위치부터의 offset을 구한다음 KIMAGE_VADDR을 사용한다.
 	 **/
 	ldr	x27, 0f				// address to jump to after
 						// MMU has been enabled
@@ -328,7 +329,7 @@ ENDPROC(preserve_boot_args)
  * Returns:	tbl -> next level table page address
  */
 	/** 20161114
-	 * 주어진 virt 주소를 변환하는 테이블 엔트리에 하위 테이블을 생성해 저장한다.
+	 * 주어진 virt 주소를 변환하는 테이블 엔트리에 하위 테이블을 저장한다.
 	 * 1,2 virtual 주소를 shift 시켜 테이블의 인덱스를 뽑아낸다.
 	 * 3,4 tbl 다음 페이지의 주소에 PMD 테이블 속성을 추가해 엔트리 값을 만들고
 	 * 5   테이블의 인덱스 번째에 생성한 엔트리 값을 저장한다.
@@ -547,7 +548,7 @@ __create_page_tables:
 	 * Map the kernel image (starting with PHYS_OFFSET).
 	 */
 	/** 20161113
-	 * swapper_pg_dir 위치에 pa(__PHYS_OFFSET)를 KIMAGE 크기만큼 매핑
+	 * swapper_pg_dir에 pa(__PHYS_OFFSET)를 KIMAGE_VADDR (va)로 매핑
 	 **/
 	mov	x0, x26				// swapper_pg_dir
 	ldr	x5, =KIMAGE_VADDR
@@ -656,16 +657,37 @@ __mmap_switched:
 	dsb	sy				// with MMU off
 #endif
 
+	/** 20161126
+	 * initial_sp가 가리키는 위치를 스택으로 설정.
+	 * init_task를 위한 스택은 별도의 데이타(.data..init_task) 영역에 배치
+	 * stack 영역과 같은 공간을 공유하는 thread_info의 위치를
+	 * 편의상 sp_el0에 저장해 사용한다.
+	 *
+	 * 참고로 현재 커널 스택사이즈는 16KB이다.
+	 **/
 	adr_l	sp, initial_sp, x4
 	mov	x4, sp
 	and	x4, x4, #~(THREAD_SIZE - 1)
 	msr	sp_el0, x4			// Save thread_info
+	/** 20161126
+	 * preserve_boot_args에 저장해뒀던 FDT 주소를 __fdt_pointer에 저장한다.
+	 * 이 주소는 물리주소이다.
+	 **/
 	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
 
+	/** 20161126
+	 * x24는 stext 진입하고 __PHYS_OFFSET로 설정해 두었다.
+	 * 따라서 여기서는 커널의 가상주소와 물리주소 사이의 오프셋을
+	 * 구해 kimage_voffset에 저장한다.
+	 * 추후 물리주소를 kimage 주소로 변환할 때 사용한다.
+	 **/
 	ldr_l	x4, kimage_vaddr		// Save the offset between
 	sub	x4, x4, x24			// the kernel virtual and
 	str_l	x4, kimage_voffset, x5		// physical mappings
 
+	/** 20161126
+	 * c코드 진입 전에 fp용으로 사용되는 x29를 0으로 설정
+	 **/
 	mov	x29, #0
 #ifdef CONFIG_KASAN
 	bl	kasan_early_init
@@ -689,6 +711,9 @@ ENDPROC(__mmap_switched)
  */
 	.section ".text","ax"
 
+/** 20161126
+ * 커널 이미지의 VA
+ **/
 ENTRY(kimage_vaddr)
 	.quad		_text - TEXT_OFFSET
 
@@ -1117,6 +1142,9 @@ __enable_mmu:
 	msr	ttbr0_el1, x25			// load TTBR0
 	msr	ttbr1_el1, x26			// load TTBR1
 	isb
+	/** 20161127
+	 * __cpu_setup에서 crval을 조작해 만들어 둔 값
+	 **/
 	msr	sctlr_el1, x0
 	isb
 	/*

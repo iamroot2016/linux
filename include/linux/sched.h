@@ -2453,6 +2453,9 @@ static inline int kstack_end(void *addr)
 }
 #endif
 
+/** 20161126
+ * init_task.c에 선언
+ **/
 extern union thread_union init_thread_union;
 extern struct task_struct init_task;
 

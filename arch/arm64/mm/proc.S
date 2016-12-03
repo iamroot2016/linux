@@ -203,7 +203,7 @@ ENTRY(__cpu_setup)
 	/** 20161115
 	 * TLB Invalidate by VMID, All at stage 1, EL1
 	 * Invalidate all EL1&0 regime stage 1 TLB entries for the current VMID.
-	 * EL1에서 사용한 local TLB를 무효화. non-shareable로 동기화
+	 * EL1에서 사용한 local TLB를 무효화. non-shareable로 현재 코어에만 적용
 	 **/
 	tlbi	vmalle1				// Invalidate local TLB
 	dsb	nsh
@@ -339,6 +339,8 @@ ENDPROC(__cpu_setup)
 	 * EE와 E0E 비트는 위에서 설정했기 때문에 지우지 않는다.
 	 *
 	 * M(비트 0) 값은 MMU enable이다.
+	 * I(비트 12)값은 Instruction cache
+	 * D(비트 2) 값은 Data cache
 	 **/
 	.type	crval, #object
 crval:
