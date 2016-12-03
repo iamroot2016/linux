@@ -208,14 +208,9 @@ ENTRY(__cpu_setup)
 	tlbi	vmalle1				// Invalidate local TLB
 	dsb	nsh
 
-	/** 20161115
+	/** 20161122
 	 * CPACR_EL1, Architectural Feature Access Control Register
 	 * FPEN 비트를 설정해 FP/SIMD 명령이 EL1으로 트랩되지 않고 허용되도록 설정.
-	 *
-	 * mdscr_el1 : Monitor Debug System Control Register
-	 * TDCC 비트를 설정해 EL0에서 DBG 레지스터 접근하면 EL1으로 trap 시킨다.
-	 *
-	 * reset_pmuserenr_el0 매크로로 EL0에서 PMU 접근을 막는다.
 	 **/
 	mov	x0, #3 << 20
 	msr	cpacr_el1, x0			// Enable FP/ASIMD
@@ -224,6 +219,10 @@ ENTRY(__cpu_setup)
 	 * MDSCR_EL1, Monitor Debug System Control Register
 	 *    Traps EL0 accesses to the DCC registers to EL1, from both Execution states:
 	 *    EL1로 트랩되도록 설정하는 것은 disable.
+
+	 *    TDCC 비트를 설정해 EL0에서 DBG 레지스터 접근하면 EL1으로 trap 시킨다.
+	 *
+	 * reset_pmuserenr_el0 매크로로 EL0에서 PMU 접근을 막는다.
 	 **/
 	msr	mdscr_el1, x0			// access to the DCC from EL0
 	reset_pmuserenr_el0 x0			// Disable PMU access from EL0

@@ -100,7 +100,7 @@
 	 * sbfx : Signed Bitfield Extract extracts any number of adjacent bits at any position from a register, sign-extends them to the size of the register, and writes the result to the destination register.
 	 * 
 	 * ID_AA64DFR0_EL1, AArch64 Debug Feature Register 0 에서 PMUVer 추출.
-	 * 아무 것도 없으면 매크로 종료. 있으면 EL0가 읽는 것을 EL1으로 trap 시킴.
+	 * 아무 것도 없으면 매크로 끝으로 이동. 그렇지 않으면 EL0가 읽는 것을 EL1으로 trap 시킴.
 	 **/
 	.macro	reset_pmuserenr_el0, tmpreg
 	mrs	\tmpreg, id_aa64dfr0_el1	// Check ID_AA64DFR0_EL1 PMUVer
