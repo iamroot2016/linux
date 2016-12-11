@@ -289,6 +289,9 @@ static int single_step_handler(unsigned long addr, unsigned int esr,
 static LIST_HEAD(break_hook);
 static DEFINE_SPINLOCK(break_hook_lock);
 
+/** 20161211
+ * hook을 break_hook 리스트를 등록한다.
+ **/
 void register_break_hook(struct break_hook *hook)
 {
 	spin_lock(&break_hook_lock);
@@ -304,6 +307,9 @@ void unregister_break_hook(struct break_hook *hook)
 	synchronize_rcu();
 }
 
+/** 20161211
+ * break_hook 리스트에서 일치하는 hook을 찾아 함수를 호출한다.
+ **/
 static int call_break_hook(struct pt_regs *regs, unsigned int esr)
 {
 	struct break_hook *hook;

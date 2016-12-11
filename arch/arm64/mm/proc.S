@@ -244,6 +244,24 @@ ENTRY(__cpu_setup)
 	 *
 	 * table descriptor 중 Table entry와 Block entry의 Lower attributes 중
 	 * Indx[4:2]는 MAIR_ELn 레지스터의 attribute index를 의미한다.
+	 *
+	 *   DEVICE_nGnRnE	000	00000000	Device non-Gathering, non-Reordering, No Early write acknowledgement.
+	 *						Equivalent to the Strongly-ordered memory type in earlier versions of the architecture.
+	 *						=> pgprot_noncached에서 사용
+	 *   DEVICE_nGnRE	001	00000100	Device non-Gathering, non-Reordering, Early Write Acknowledgement.
+	 *						Equivalent to the Device memory type in earlier versions of the architecture.
+	 *						=> pgprot_device, ioremap에서 사용
+	 *   DEVICE_GRE		010	00001100	Device Gathering, Reordering, Early Write Acknowledgement.
+	 *						Device-GRE memory has the fewest constraints. It behaves similar to Normal memory,
+	 *						with the restriction that speculative accesses to Device-GRE memory is forbidden.
+	 *   NORMAL_NC		011	01000100	Normal Memory, Outer Non-cacheable / Normal memory, Inner Non-cacheable
+							=> pgprot_writecombine, dma contiguous에서 사용
+	 *   NORMAL		100	11111111	Normal Memory, Outer Write-back non-transient + Outer Read Alloc + Outer Write Alloc
+	 *						Normal Memory, Inner Write-back non-transient + Inner Read Alloc + Innter Write Alloc
+	 *   NORMAL_WT		101	10111011	Normal Memory, Outer Write-through non-transient + Outer Read Alloc + Outer Write Alloc
+	 *						Normal Memory, Inner Write-through non-transient + Inner Read Alloc + Innter Write Alloc
+	 *   ARMv8 PG 13.1 Memory type 참고.
+	 *   Gathering, Re-ordering, Early Write Acknowledgement.
 	 **/
 	ldr	x5, =MAIR(0x00, MT_DEVICE_nGnRnE) | \
 		     MAIR(0x04, MT_DEVICE_nGnRE) | \
@@ -271,9 +289,15 @@ ENTRY(__cpu_setup)
 	 */
 	/** 20161115
 	 * TCR 설정값을 만든다.
-	 * TxSZ는 kernel/user에서 사용할 VA_BITS의 크기
-	 * CACHE_FLAGS는 TTBR1/TTBR0을 사용한 변환 테이블 순회시 접근하는
+	 * TCR_TxSZ는 kernel/user에서 사용할 VA_BITS의 크기
+	 * TCR_CACHE_FLAGS는 TTBR1/TTBR0을 사용한 변환 테이블 순회시 접근하는
 	 *   메모리에 대한 Inner/Outer Cacheability 속성을 정의한다.
+	 * TCR_SMP_FLAGS는 TTBR1/TTBR0의 변환 테이블 순회시 접근하는
+	 *   shareability 속성을 Inner shareable로 사용한다.
+	 * TCR_TG_FLAGS는 TTBR1/TTBR0의 Granule size를 4K로 설정한다.
+	 * TCR_ASID16는 ASID Size를 16비트로 선택한다. TTBR0_EL1, TTBR1_EL1의 상위 16비트가 TLB 내의 할당 및 매칭에 사용된다.
+	 * TCR_TBI0는 TTBR0_EL1에 대한 address matching에서 TBI를 사용할지 말지 결정한다. Top Byte Ignore.
+	 *   이 값은 1로 설정되어 user address space에서 무시된다.
 	 *
 	 * idmap을 위해 계산해둔 t0sz를 덮어 쓴다.
 	 **/
@@ -335,7 +359,7 @@ ENDPROC(__cpu_setup)
 	 */
 	/** 20161115
 	 * sctlr 레지스터에서 clear 할 비트와 설정할 비트가 미리 준비되어 있다.
-	 * EE와 E0E 비트는 위에서 설정했기 때문에 지우지 않는다.
+	 * EE와 E0E 비트는 el2_setup에서 설정했기 때문에 보존한다.
 	 *
 	 * M(비트 0) 값은 MMU enable이다.
 	 * I(비트 12)값은 Instruction cache

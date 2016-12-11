@@ -591,9 +591,9 @@ kernel_img_size:
  * The following fragment of code is executed with the MMU enabled.
  */
 	/** 20161115
-	 * 변수 initial_sp를 init_thread의 스택 시작지점으로 설정
-	 *
 	 * __mmap_switched부터 MMU enable된 후 실행
+	 *
+	 * 변수 initial_sp를 init_thread의 스택 시작지점으로 설정
 	 **/
 	.set	initial_sp, init_thread_union + THREAD_START_SP
 __mmap_switched:
@@ -680,6 +680,8 @@ __mmap_switched:
 	 * 따라서 여기서는 커널의 가상주소와 물리주소 사이의 오프셋을
 	 * 구해 kimage_voffset에 저장한다.
 	 * 추후 물리주소를 kimage 주소로 변환할 때 사용한다.
+	 *
+	 * kimage_vaddr 
 	 **/
 	ldr_l	x4, kimage_vaddr		// Save the offset between
 	sub	x4, x4, x24			// the kernel virtual and
@@ -1123,8 +1125,9 @@ ENTRY(__early_cpu_boot_status)
 	.section	".idmap.text", "ax"
 __enable_mmu:
 	/** 20161115
-	 * Memory Model Feature Register에서 읽어온 TGran 필드를 보고
-	 * 커널에서 설정한 PAGE 크기가 지원 가능한지 검사한다.
+	 * Memory Model Feature Register에서 커널에서 설정한 페이지 크기에 해당하는
+	 * TGran 필드를 추출해 지원 가능한지 검사한다.
+	 *	Support for 4KB memory translation granule size. 
 	 **/
 	mrs	x22, sctlr_el1			// preserve old SCTLR_EL1 value
 	mrs	x1, ID_AA64MMFR0_EL1
@@ -1154,7 +1157,8 @@ __enable_mmu:
 	 */
 	/** 20161115
 	 * (local) instruction cache invalidate all by PoU
-	 * PoC에 의해 투기적 fetch 되었을 수도 있는 명령 캐시를 무효화한다.
+	 * local I-cache를 무효화시켜 PoC에 의해 투기적으로 발생했을지 모르는
+	 * 명령 fetch를 버린다.
 	 **/
 	ic	iallu
 	dsb	nsh
@@ -1180,7 +1184,7 @@ __enable_mmu:
 	add	x27, x27, x23			// relocated __mmap_switched
 #endif
 	/** 20161115
-	 * 호출시 x27에 저장된 va로 뛴다 (커널 부팅시 __mmap_switched)
+	 * 호출시 x27에 저장된 va로 뛴다 (첫 부팅시 __mmap_switched)
 	 **/
 	br	x27
 ENDPROC(__enable_mmu)
