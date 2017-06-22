@@ -6,6 +6,9 @@ make ARCH=arm64 defconfig
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j8 -sw
 make ARCH=arm64 tags cscope
 
+/home/freestyle/Workspace/other/qemu.git/aarch64-softmmu/qemu-system-aarch64 -machine virt -cpu cortex-a57 -machine type=virt -nographic -smp 4 -m 2048 -kernel arch/arm64/boot/Image --append "console=ttyAMA0"
+ddd --gdb --debugger /opt/crosstools/gcc-linaro-5.3-2016.02-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-gdb
+
 
 
 
@@ -110,3 +113,176 @@ ffffff8008080000 T _text
 ...
 ffffff8008c01000 A __efistub__end
 ffffff8008c01000 B _end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+================================================================================
+* 토픽 : SMP CORE 끼리 인터럽트는 어떻게 주고 받을까?
+	- How do interrupts work on multicore ARM cpu
+	- Send Inter-Processor Interrupts in Zynq
+
+* 환경
+qemu cortex-a57 quad, kernel 4.6,
+
+# dmesg | grep -i gic
+[    0.000000] GICv2m: range[mem 0x08020000-0x08020fff], SPI[80:143]
+
+
+* IPI에는 어떤 것들이 있나? 대표적인 호출 예제
+	S(IPI_RESCHEDULE, "Rescheduling interrupts"),
+	S(IPI_CALL_FUNC, "Function call interrupts"),
+	S(IPI_CPU_STOP, "CPU stop interrupts"),
+	S(IPI_TIMER, "Timer broadcast interrupts"),
+	S(IPI_IRQ_WORK, "IRQ work interrupts"),
+	S(IPI_WAKEUP, "CPU wake-up interrupts"),
+
+* 호출 flow
+	=> 아래 정리
+
+* 호출 API
+	smp_cross_call(mask, IPI_CALL_FUNC);
+
+
+
+// arch/arm64/kernel/entry.S
+
+ENTRY(vectors)
+	ventry	el1_sync_invalid		// Synchronous EL1t
+	ventry	el1_irq_invalid			// IRQ EL1t
+	ventry	el1_fiq_invalid			// FIQ EL1t
+	ventry	el1_error_invalid		// Error EL1t
+
+	ventry	el1_sync			// Synchronous EL1h
+	ventry	el1_irq				// IRQ EL1h		// el1_irq
+	ventry	el1_fiq_invalid			// FIQ EL1h
+	ventry	el1_error_invalid		// Error EL1h
+
+	...
+
+el1_irq:
+	kernel_entry 1
+	enable_dbg
+
+	get_thread_info tsk
+	irq_handler						// irq_handler
+
+/*
+ * Interrupt handling.
+ */
+	.macro	irq_handler
+	ldr_l	x1, handle_arch_irq				// handle_arch_irq
+	mov	x0, sp
+	irq_stack_entry
+	blr	x1
+	irq_stack_exit
+	.endm
+
+
+gic_of_init
+	__gic_init_bases
+		set_handle_irq(gic_handle_irq);			// handle_arch_irq 지정
+
+gic_handle_irq							// drivers/irqchip/irq-gic.c
+	irqnr = irqstat & GICC_IAR_INT_ID_MASK;
+	if (irqnr < 16) {
+#ifdef CONFIG_SMP
+		handle_IPI(irqnr, regs);			// arch/arm64/kernel/smp.c
+#endif
+
+
+void handle_IPI(int ipinr, struct pt_regs *regs)
+{
+	unsigned int cpu = smp_processor_id();
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	if ((unsigned)ipinr < NR_IPI) {
+		trace_ipi_entry_rcuidle(ipi_types[ipinr]);
+		__inc_irq_stat(cpu, ipi_irqs[ipinr]);
+	}
+
+	switch (ipinr) {
+	case IPI_RESCHEDULE:
+		scheduler_ipi();
+		break;
+
+	case IPI_CALL_FUNC:
+		irq_enter();
+		generic_smp_call_function_interrupt();
+		irq_exit();
+		break;
+
+	case IPI_CPU_STOP:
+		irq_enter();
+		ipi_cpu_stop(cpu);
+		irq_exit();
+		break;
+
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+	case IPI_TIMER:
+		irq_enter();
+		tick_receive_broadcast();
+		irq_exit();
+		break;
+#endif
+
+#ifdef CONFIG_IRQ_WORK
+	case IPI_IRQ_WORK:
+		irq_enter();
+		irq_work_run();
+		irq_exit();
+		break;
+#endif
+
+#ifdef CONFIG_ARM64_ACPI_PARKING_PROTOCOL
+	case IPI_WAKEUP:
+		WARN_ONCE(!acpi_parking_protocol_valid(cpu),
+			  "CPU%u: Wake-up IPI outside the ACPI parking protocol\n",
+			  cpu);
+		break;
+#endif
+
+	default:
+		pr_crit("CPU%u: Unknown IPI message 0x%x\n", cpu, ipinr);
+		break;
+	}
+
+	if ((unsigned)ipinr < NR_IPI)
+		trace_ipi_exit_rcuidle(ipi_types[ipinr]);
+	set_irq_regs(old_regs);
+}
+
+
+
+
+# cat /proc/interrupts 
+           CPU0       CPU1       CPU2       CPU3       
+  3:        601        658        577        621     GIC-0  27 Edge      arch_timer
+ 38:          0          0          0          0     GIC-0  34 Level     rtc-pl031
+ 39:         91          0          0          0     GIC-0  33 Level     uart-pl011
+ 43:          0          0          0          0     pl061   3 Edge      GPIO Key Poweroff
+ 49:          0          0          0          0       MSI 16384 Edge      virtio0-config
+ 50:          0          0          0          0       MSI 16385 Edge      virtio0-input.0
+ 51:          0          0          0          0       MSI 16386 Edge      virtio0-output.0
+IPI0:       224        212        212        268       Rescheduling interrupts
+IPI1:         5          2          3          4       Function call interrupts
+IPI2:         0          0          0          0       CPU stop interrupts
+IPI3:         0          0          0          0       Timer broadcast interrupts
+IPI4:         0          0          0          0       IRQ work interrupts
+IPI5:         0          0          0          0       CPU wake-up interrupts
+Err:          0
+# 
