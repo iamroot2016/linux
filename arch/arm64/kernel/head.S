@@ -676,12 +676,16 @@ __mmap_switched:
 	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
 
 	/** 20161126
-	 * x24는 stext 진입하고 __PHYS_OFFSET로 설정해 두었다.
+	 * x24는 stext 진입하고 MMU 켜지기 전 물리 주소 __PHYS_OFFSET를
+	 * (KERNEL_START - TEXT_OFFSET)
+	 * adrp (pc-relative)로 구한 값이 저장되어 있다.
+	 *
+	 * kimage_vaddr의 주소 : 이것을 linear address라고 해야 하나?
+	 *	.quad		_text - TEXT_OFFSET
+	 *
 	 * 따라서 여기서는 커널의 가상주소와 물리주소 사이의 오프셋을
 	 * 구해 kimage_voffset에 저장한다.
 	 * 추후 물리주소를 kimage 주소로 변환할 때 사용한다.
-	 *
-	 * kimage_vaddr 
 	 **/
 	ldr_l	x4, kimage_vaddr		// Save the offset between
 	sub	x4, x4, x24			// the kernel virtual and

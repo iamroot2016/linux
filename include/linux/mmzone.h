@@ -55,6 +55,17 @@ enum {
 	 * MAX_ORDER_NR_PAGES should biggest page be bigger then
 	 * a single pageblock.
 	 */
+	/** 20170304
+	 * CMA는 물리적으로 연속된 공간을 할당하기 위해 일정 영역에 표시한 이후,
+	 * 다른 용도로 페이지들을 할당해 사용하다가 cma에 대한 요청이 들어오면
+	 * 해당 영역의 페이지프레임을 이주시키는 동작을 취한다.
+	 *
+	 * MIGRATE 타입 CMA는 ZONE_MOVABLE이 동작하는 방식을 모방도록 디자인 되었다.
+	 * 오직 movable pages만 MIGRATE_CMA 페이지블럭들로부터 할당될 수 있고,
+	 * 페이지 할당자는 MIGRATE_CMA 페이지블럭의 migrate type을 묵시적으로 바꾸면 안 된다.
+	 *
+	 * 페이지블럭의 migrate type을 MIGRATE_CMA로 변경하려면 __free_pageblock_cma() 함수를 호출한다.
+	 **/
 	MIGRATE_CMA,
 #endif
 #ifdef CONFIG_MEMORY_ISOLATION

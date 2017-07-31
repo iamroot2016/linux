@@ -239,6 +239,11 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 /*
  * Hugetlb definitions.
  */
+/** 20170304
+ * HPAGE_SHIFT : 21
+ * PAGE_SHIFT : 12 (4KB 페이지 사용하는 경우)
+ * HUGETLB_PAGE_ORDER = 9
+ **/
 #define HUGE_MAX_HSTATE		4
 #define HPAGE_SHIFT		PMD_SHIFT
 #define HPAGE_SIZE		(_AC(1, UL) << HPAGE_SHIFT)

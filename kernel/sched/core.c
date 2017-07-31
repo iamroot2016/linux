@@ -3363,6 +3363,10 @@ EXPORT_SYMBOL_GPL(preempt_schedule_notrace);
  * Note, that this is called and return with irqs disabled. This will
  * protect us against recursive calling from irq.
  */
+/** 20170527
+ * 이곳은 irq 컨텍스트의 커널 선점 오프 상태로 schedule에 진입하는 진입점이다.
+ * irqs disabled 상태로 들어오고 나간다. 따라서 irq로 재귀적인 호출을 막는다.
+ **/
 asmlinkage __visible void __sched preempt_schedule_irq(void)
 {
 	enum ctx_state prev_state;

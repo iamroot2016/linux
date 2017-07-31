@@ -66,6 +66,18 @@
 #define BAD_FIQ		2
 #define BAD_ERROR	3
 
+	/** 20170415
+	 * kernel 진입시 context를 생성하기 위해 공통으로 실행.
+	 * 어떤 el을 위한 설정인지 호출시 변수를 받아 결정한다.
+	 *
+	 * step
+	 * 1. 현재 el의 sp에 stack frame 확보 (struct pt_regs)
+	 * 2. register들 저장
+	 *    x0-x29, lr(x30), sp(el0 or current sp),
+	 *    elr_el1 (pc), spsr_el1 (PSTATE), 
+	 *     
+	 *    
+	 **/
 	.macro	kernel_entry, el, regsize = 64
 	sub	sp, sp, #S_FRAME_SIZE
 	.if	\regsize == 32
@@ -106,6 +118,10 @@
 	/*
 	 * Set syscallno to -1 by default (overridden later if real syscall).
 	 */
+	/** 20170606
+	 * mvn: Bitwise NOT
+	 * el0_svc에서 x0와 scno를 #S_ORIG_X0에 저장한다.
+	 **/
 	.if	\el == 0
 	mvn	x21, xzr
 	str	x21, [sp, #S_SYSCALLNO]
@@ -656,6 +672,12 @@ ENDPROC(cpu_switch_to)
  * This is the fast syscall return path.  We do as little as possible here,
  * and this includes saving x0 back into the kernel stack.
  */
+/** 20170606
+ * syscall 리턴 패스. 가능한 최소한만 한다.
+ * x0를 커널 스택에 저장.
+ *
+ * cbnz : Compare and Branch on Nonzero
+ **/
 ret_fast_syscall:
 	disable_irq				// disable interrupts
 	str	x0, [sp, #S_X0]			// returned x0
@@ -673,6 +695,11 @@ ret_fast_syscall_trace:
 /*
  * Ok, we need to do extra processing, enter the slow path.
  */
+/** 20170606
+ * 추가적인 작업을 해야 하므로 slow path로 진입한다.
+ *
+ * tbnz : Test bit and branch if nonzero
+ **/
 work_pending:
 	tbnz	x1, #TIF_NEED_RESCHED, work_resched
 	/* TIF_SIGPENDING, TIF_NOTIFY_RESUME or TIF_FOREIGN_FPSTATE case */

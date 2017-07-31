@@ -549,6 +549,9 @@ void __init hook_debug_fault_code(int nr,
 	debug_fault_info[nr].name	= name;
 }
 
+/** 20170408
+ * el1_sync -> el1_dbg
+ **/
 asmlinkage int __exception do_debug_exception(unsigned long addr,
 					      unsigned int esr,
 					      struct pt_regs *regs)
@@ -571,6 +574,15 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 	return 0;
 }
 
+/** 20170408
+ * Privileged Access Never (PAN; part of the ARMv8.1 Extensions)
+ * prevents the kernel or hypervisor from accessing user-space (EL0) memory directly.
+ *
+ * Choosing this option will cause any unprotected (not using copy_to_user et al)
+ * memory access to fail with a permission fault.
+ *
+ * 피처는 런타임시에 검사되고, cpu가 지원하지 않으면 'nop'으로 된다(코드로 만들어 주겠지?)
+ **/
 #ifdef CONFIG_ARM64_PAN
 void cpu_enable_pan(void *__unused)
 {
@@ -585,6 +597,10 @@ void cpu_enable_pan(void *__unused)
  * We need to enable the feature at runtime (instead of adding it to
  * PSR_MODE_EL1h) as the feature may not be implemented by the cpu.
  */
+/** 20170408
+ * User Access Override (UAO; part of the ARMv8.2 Extensions)
+ * causes the 'unprivileged' variant of the load/store instructions to be overriden to be privileged.
+ **/
 void cpu_enable_uao(void *__unused)
 {
 	asm(SET_PSTATE_UAO(1));
